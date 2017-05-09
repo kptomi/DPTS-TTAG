@@ -75,24 +75,54 @@ namespace DPTS.Model
                 {
                     // az "A" intervallum tartalmazza a "B" intervallumot
                     intersect._RangeList.Add(new Range(intervalB.From, intervalB.To));
+                    ++counterB;
                 }
                 else if (intervalA.From >= intervalB.From && intervalA.To <= intervalB.To)
                 {
                     // a "B" intervallum tartalmazza az "A" intervallumot
                     intersect._RangeList.Add(new Range(intervalA.From, intervalA.To));
+                    ++counterA;
                 }
-                else if (intervalA.From <= intervalB.From && intervalA.To <= intervalB.To)
+                else if (intervalA.From <= intervalB.From && intervalA.To >= intervalB.From && intervalA.To <= intervalB.To)
                 {
-                    // az "A" intervallum előbb kezdődik és előbb is fejeződik be, mint a "B" intervallum
+                    // a "B" intervallum az "A" "intervallumban" kezdődik, de később ér véget
                     intersect._RangeList.Add(new Range(intervalB.From, intervalA.To));
+                    ++counterA;
                 }
-                else if (intervalA.From >= intervalB.From && intervalA.To >= intervalB.To)
+                else if (intervalA.From >= intervalB.From && intervalA.From <= intervalB.To && intervalA.To >= intervalB.To)
                 {
-                    // a "B" intervallum előbb kezdődik és előbb is fejeződik be, mint az "A" intervallum
+                    // az "A" intervallum a "B" "intervallumban" kezdődik, de később ér véget
                     intersect._RangeList.Add(new Range(intervalA.From, intervalB.To));
+                    ++counterB;
+                }
+                else if (intervalA.From > intervalB.To)
+                {
+                    // nincs közös része a két intervallumnak ÉS a "B" intervallum "után" kezdődik az "A"
+                    ++counterB;
+                }
+                else
+                {
+                    // nincs közös része a két intervallumnak ÉS az "A" intervallum "után" kezdődik a "B"
+                    ++counterA;
                 }
             }
             return intersect;
+        }
+
+        public Boolean IsDirectionInRange(Double direction)
+        {
+            Boolean isDirectionInRange = false;
+            for (Int32 i = 0; !isDirectionInRange && i < _RangeList.Count; ++i)
+            {
+                Range range = _RangeList[i];
+                isDirectionInRange = (direction >= range.From && direction <= range.To);
+            }
+            return isDirectionInRange;
+        }
+
+        public Int32 NumberOFRanges()
+        {
+            return _RangeList.Count;
         }
     }
 }

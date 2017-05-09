@@ -29,8 +29,7 @@ namespace DPTS.ViewModel
         public Boolean IsOpenEnabled { get => SelectedSizeIndex != -1; }
         public Boolean DataAlreadyReaded { get; private set; }
         private String _StatusMessage;
-        public String StatusMessage { get => _StatusMessage; private set { _StatusMessage = value; OnPropertyChanged("StatusMessage"); }
-        }
+        public String StatusMessage { get => _StatusMessage; private set { _StatusMessage = value; OnPropertyChanged("StatusMessage"); } }
 
 
         // Események (a viewmodel-nek)
@@ -47,7 +46,7 @@ namespace DPTS.ViewModel
 
         private readonly String[] _ObservableSizes = { "All", "5", "10", "20", "50", "100", "200", "500" };
         public String[] ObservableSizes { get => _ObservableSizes; }
-        private readonly String[] _ObservableAlgorithms = { "SP", "SP-Prac" };
+        private readonly String[] _ObservableAlgorithms = { "SP", "SP-Prac", "SP-Theo", "SP-Both", "Intersect" };
         public String[] ObservableAlgorithms { get => _ObservableAlgorithms; }
         public ObservableCollection<Result> Results { get; private set; }
 
