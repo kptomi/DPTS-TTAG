@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -13,9 +14,6 @@ namespace DPTS.Model
 
     public class DPTSModel
     {
-
-        // Konstansok
-
 
         // Privát adattagok
 
@@ -37,53 +35,87 @@ namespace DPTS.Model
             InitializeTrajectoriesAndResults();
         }
 
+
         private void InitializeTrajectoriesAndResults()
         {
             _OriginalTrajectories = new List<Trajectory>();
             _SimplifiedTrajectories = new List<Trajectory>();
         }
 
-        public void OpenAndLoadFromFile(DataType data_type, String path_to_data_root, Int32 limit) {
-            // TOTO : normális hibaüzenetet adni
-            if (!Directory.Exists(path_to_data_root))
+
+        public void OpenAndLoadFromFile(DataType dataType, String path, Int32 limit) {
+            if (!File.Exists(path) &&!Directory.Exists(path))
             {
-                ErrorMessage(this, new StringMessageArgs("A megadott könyvtár nem létezik."));
+                ErrorMessage(this, new StringMessageArgs("Browsed file or directory does not exist."));
+                return;
             }
 
             InitializeTrajectoriesAndResults();
-            switch (data_type)
+            SendResultMessageFromThread(0, ResultType.Reinitialize, 0, 0);
+
+            Task task = Task.Run(() =>
+            {
+                SendStatusMessageFromThread("Load trajectory data from data source... 1/" + limit);
+                if (File.Exists(path))
+                {
+                    ProcessFile(dataType, path);
+                }
+                else
+                {
+                    // könyvtár adott
+                    SearchFilesInDirectory(dataType, path, limit, 0);
+                }
+                SendStatusMessageFromThread("Trajectory data has been load.");
+            });
+        }
+
+
+        private Int32 SearchFilesInDirectory(DataType dataType, String path, Int32 limit, Int32 numberProcessedFiles)
+        {
+            String[] fileEntries = Directory.GetFiles(path);
+            for (Int32 i = 0; numberProcessedFiles < limit && i < fileEntries.Length; ++i)
+            {
+                if (ProcessFile(dataType, fileEntries[i]))
+                {
+                    ++numberProcessedFiles;
+                    SendStatusMessageFromThread("Load trajectory data from data source... " + numberProcessedFiles  + "/ " + limit);
+                }
+            }
+
+            String[] directoryEntries = Directory.GetDirectories(path);
+            for (Int32 i = 0; numberProcessedFiles < limit && i < directoryEntries.Length; ++i)
+            {
+                numberProcessedFiles += SearchFilesInDirectory(dataType, directoryEntries[i], limit, numberProcessedFiles);
+            }
+
+            return numberProcessedFiles;
+        }
+
+
+        private Boolean ProcessFile(DataType dataType, String fileName)
+        {
+            Boolean success = false;
+
+            switch (dataType)
             {
                 case DataType.PLT:
-                    ReadDataFromPLT(path_to_data_root, limit);
+                    Regex rx = new Regex(@"\.plt$");
+                    if (rx.IsMatch(fileName))
+                    {
+                        ProcessPLTFile(fileName);
+                        success = true;
+                    }
                     break;
                 default:
-                    break;
+                    throw new NotImplementedException();
+                    //break;
             }
+
+            return success;
         }
 
 
-        private void ReadDataFromPLT(String path_to_data_root, Int32 limit)
-        {
-            // TODO : ellenőrizni a struktúra helyességét
-
-            String[] directoryEntries = Directory.GetDirectories(path_to_data_root);
-
-            Int32 i = 0;
-            while (i < limit && i < directoryEntries.Length)
-            {
-                String[] fileEntries = Directory.GetFiles(directoryEntries[i] + "\\Trajectory");
-                // TODO : kivenni a korlátozást
-                Int32 maxJ = fileEntries.Length > (limit - i) ? (limit - i) : fileEntries.Length;
-                for (Int32 j = 0; j < maxJ; ++j)
-                {
-                    String file = fileEntries[j];
-                    ProcessPLTFile(file);
-                }
-                i += maxJ;
-            }
-        }
-
-        public void ProcessPLTFile(String filename)
+        private void ProcessPLTFile(String filename)
         {
             String input;
             String[] inputArray;
@@ -109,15 +141,14 @@ namespace DPTS.Model
             trajectory.setStartTime(startTime);
             trajectory.setEndTime(endTime);
             _OriginalTrajectories.Add(trajectory);
-            ResultMessage(this, new ResultMessageArgs(_OriginalTrajectories.Count - 1, ResultType.Original, trajectory.NumberOfPoints, 0));
+            SendResultMessageFromThread(_OriginalTrajectories.Count - 1, ResultType.Original, trajectory.NumberOfPoints, 0);
         }
 
-        public void SimplifyTrajectories(AlgorithmType algorithm_type)
+
+        public void SimplifyTrajectories(AlgorithmType algorithm_type, Double errorTolerance)
         {
             Task task = Task.Run(() =>
             {
-                // TODO : ezt is meg lehessen adni az interfészről
-                Double errorTolerance = 0.785;
                 switch (algorithm_type)
                 {
                     case AlgorithmType.SP:
@@ -169,6 +200,20 @@ namespace DPTS.Model
                         StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Theo algoritmussal KÉSZ."));
                         break;
                     case AlgorithmType.SP_Both:
+                        StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Both algoritmussal... 0/" + _OriginalTrajectories.Count));
+                        for (Int32 i = 0; i < _OriginalTrajectories.Count; ++i)
+                        {
+                            StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Both algoritmussal... " + (i + 1) + "/" + _OriginalTrajectories.Count));
+                            // step 0
+                            // egymás utáni azonos pontok sorozatának helyettesítése egyetlen ponttal
+                            Trajectory removedSeqsFromTrajectory = RemoveSequences(_OriginalTrajectories[i]);
+                            DateTime timeStart = DateTime.Now;
+                            Trajectory t = SimplifyBySP_Both(removedSeqsFromTrajectory, errorTolerance);
+                            Double timeDifference = (DateTime.Now - timeStart).TotalSeconds;
+                            _SimplifiedTrajectories.Add(t);
+                            SendResultMessageFromThread(i, ResultType.SP_Both, t.NumberOfPoints, timeDifference);
+                        }
+                        StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Both algoritmussal KÉSZ."));
                         break;
                     case AlgorithmType.Intersect:
                         for (Int32 i = 0; i < _OriginalTrajectories.Count; ++i)
@@ -189,6 +234,7 @@ namespace DPTS.Model
                 }
             });
         }
+
 
         private Trajectory RemoveSequences(Trajectory originalTrajectory)
         {
@@ -215,6 +261,7 @@ namespace DPTS.Model
             return removedSequences;
         }
 
+
         private Trajectory SimplifyBySP(Trajectory trajectory, Double error_tolerance)
         {
             // step 1 - graph construction
@@ -229,6 +276,7 @@ namespace DPTS.Model
             }
             return simplifiedTrajectory;
         }
+
 
         private List<Int32>[] ConstructGraph(Trajectory trajectory, Double error_tolerance)
         {
@@ -254,6 +302,7 @@ namespace DPTS.Model
             return graph;
         }
 
+
         // epszilon az egyszerűsített trajektória egy szakaszára összevetve az eredeti trajektória megfelelő darabjaival - maximumkiválasztás
         private Double GetSimplificationErrorOnSegment(Trajectory trajectory, Int32 i, Int32 j)
         {
@@ -272,11 +321,13 @@ namespace DPTS.Model
             return directionMaximalDifference;
         }
 
+
         private Double GetDirectionDifference(Double direction1, Double direction2)
         {
             Double absDifference = Math.Abs(direction1 - direction2);
             return Math.Min(absDifference, Math.PI * 2 - absDifference);
         }
+
 
         // Dijkstra-algoritmus
         private List<Int32> GetShortestPath(List<Int32>[] graph)
@@ -333,6 +384,7 @@ namespace DPTS.Model
             return shortestPathIndexes;
         }
 
+
         private Trajectory SimplifyBySP_Prac(Trajectory trajectory, Double error_tolerance)
         {
             Int32[] prev = new Int32[trajectory.NumberOfPoints];
@@ -355,11 +407,11 @@ namespace DPTS.Model
             {
                 HashSet<IndexedPoints> Hk_Set = new HashSet<IndexedPoints>();
                 // process positions in H(k-1)_Set and U in a reversed order
-                for (Int32 i = U_Set.Count - 1; !ready && i >= 0; --i)
+                foreach (IndexedPoints pi in H_Sets[H_Sets.Count - 1])
                 {
-                    IndexedPoints pj = U_Set[i];
-                    foreach (IndexedPoints pi in H_Sets[H_Sets.Count - 1])
+                    for (Int32 i = U_Set.Count - 1; !ready && i >= 0; --i)
                     {
+                        IndexedPoints pj = U_Set[i];
                         if (pi.Index >= pj.Index)
                         {
                             continue;
@@ -403,6 +455,7 @@ namespace DPTS.Model
             return simplifiedTrajectory;
         }
 
+
         private Trajectory SimplifyBySP_Theo(Trajectory trajectory, Double error_tolerance)
         {
             // step 1 - graph construction
@@ -417,6 +470,7 @@ namespace DPTS.Model
             }
             return simplifiedTrajectory;
         }
+
 
         private List<Int32>[] ConstructGraphWithFDR(Trajectory trajectory, Double error_tolerance)
         {
@@ -443,27 +497,80 @@ namespace DPTS.Model
             return graph;
         }
 
-        private DirectionRange[,] GetFDRsForTrajectory(Trajectory trajectory, Double error_tolerance)
+
+        private Trajectory SimplifyBySP_Both(Trajectory trajectory, Double error_tolerance)
         {
-            // feasible direction range-ek számítása
-            Int32 numberOfVertexes = trajectory.NumberOfPoints;
-            DirectionRange[,] FDR_matrix = new DirectionRange[numberOfVertexes, numberOfVertexes];
-            
-            // (r > 1) esetek
-            for (Int32 r = 2; r < numberOfVertexes; ++r)
+            Int32[] prev = new Int32[trajectory.NumberOfPoints];
+
+            List<HashSet<IndexedPoints>> H_Sets = new List<HashSet<IndexedPoints>>();
+
+            HashSet<IndexedPoints> H0_Set = new HashSet<IndexedPoints> { new IndexedPoints(0, trajectory[0]) };
+            H_Sets.Add(H0_Set);
+
+            List<IndexedPoints> U_Set = new List<IndexedPoints>();
+            for (Int32 i = 1; i < trajectory.NumberOfPoints; ++i)
             {
-                if (r % 5 == 0)
-                {
-                    Console.WriteLine("R: " + r);
-                }
-                for (Int32 h = 0; h < numberOfVertexes - r; ++h)
-                {
-                    FDR_matrix[h, h + r] = DirectionRange.Intersect(FDR_matrix[h, h + r - 1], FDR_matrix[h + r - 1, h + r]);
-                }
+                U_Set.Add(new IndexedPoints(i, trajectory[i]));
             }
 
-            return FDR_matrix;
+            FeasibleDirectionRange FDR = new FeasibleDirectionRange(trajectory, error_tolerance);
+
+            //Int32 k = 1;
+
+            Boolean ready = false;
+            while (!ready)
+            {
+                HashSet<IndexedPoints> Hk_Set = new HashSet<IndexedPoints>();
+                // process positions in H(k-1)_Set and U in a reversed order
+                foreach (IndexedPoints pi in H_Sets[H_Sets.Count - 1])
+                {
+                    for (Int32 i = U_Set.Count - 1; !ready && i >= 0; --i)
+                    {
+                        IndexedPoints pj = U_Set[i];
+                    
+                        if (pi.Index >= pj.Index)
+                        {
+                            // egy csúcsból csak nagyobb indexű csúcsba vezethet él
+                            continue;
+                        }
+                        if (FDR.IsDirectionInRange(trajectory, pi.Index, pj.Index))
+                        {
+                            // vezet el pi-ből pj-be
+                            prev[pj.Index] = pi.Index;
+                            if (pj.Index == trajectory.NumberOfPoints - 1)
+                            {
+                                // eljutottunk az utolsó pontba
+                                ready = true;
+                                break;
+                            }
+                            U_Set.Remove(pj);
+                            Hk_Set.Add(pj);
+                        }
+                    }
+                }
+                H_Sets.Add(Hk_Set);
+                //++k;
+            }
+
+            // solution generation
+            List<Int32> shortestPathIndexes = new List<Int32>();
+            Int32 current = trajectory.NumberOfPoints - 1; // az utolsó csúcs mindenképpen eleme az egyszerűsített trajektóriának, ide kell eljutni
+            shortestPathIndexes.Insert(0, current);
+            while (current != 0)
+            {
+                // még nem értünk el a kiinduló pontba
+                current = prev[current];
+                shortestPathIndexes.Insert(0, current);
+            }
+
+            Trajectory simplifiedTrajectory = new Trajectory();
+            for (Int32 i = 0; i < shortestPathIndexes.Count; ++i)
+            {
+                simplifiedTrajectory.Add(trajectory[shortestPathIndexes[i]]);
+            }
+            return simplifiedTrajectory;
         }
+
 
         private Trajectory SimplifyByIntersectAlg(Trajectory trajectory, Double error_tolerance)
         {
@@ -485,6 +592,7 @@ namespace DPTS.Model
             }
             return simplifiedTrajectory;
         }
+
 
         private Boolean IsSegmentFeasible(Trajectory t, Int32 indexFrom, Int32 IndexTo, Double error_tolerance, DirectionRange[,] FDR_matrix)
         {
@@ -514,9 +622,15 @@ namespace DPTS.Model
             }
         }
 
+
         private void SendResultMessageFromThread(Int32 id, ResultType resultType, Int32 length, Double timeInSecs)
         {
             Application.Current.Dispatcher.Invoke(new Action(() => { ResultMessage(this, new ResultMessageArgs(id, resultType, length, timeInSecs)); }));
+        }
+
+        private void SendStatusMessageFromThread(String message)
+        {
+            Application.Current.Dispatcher.Invoke(new Action(() => { StatusMessage(this, new StringMessageArgs(message)); }));
         }
     }
 }

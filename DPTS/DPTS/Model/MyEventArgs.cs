@@ -12,7 +12,7 @@ namespace DPTS.Model
         }
     }
 
-    public enum ResultType { Original, SP, SP_Prac, SP_Theo, SP_Both, Intersect };
+    public enum ResultType { Original, SP, SP_Prac, SP_Theo, SP_Both, Intersect, Reinitialize };
 
     public class ResultMessageArgs : EventArgs
     {

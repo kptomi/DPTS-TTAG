@@ -12,18 +12,21 @@ namespace DPTS.ViewModel
 
         // Konstansok
 
-        private const string _pathToDataRoot = "C:\\Users\\User\\Documents\\Terinformatika\\4-Geolife\\Geolife Trajectories 1.3\\Data";
+        private const string _pathExample = "C:\\Users\\User\\Documents\\Terinformatika\\4-Geolife\\Geolife Trajectories 1.3\\Data";
 
         // Privát adattagok
         private DPTSModel _Model;
+        private Double _ErrorTolerance;
 
 
         // Publikus Properties (tulajdonságok) - ha csak a felületről szeretnénk módosítani, elég az automatikus getter/setter művelet
 
-        private String _PathToDataRoot;
-        public String PathToDataRoot { get => _PathToDataRoot; set { _PathToDataRoot = value; OnPropertyChanged("PathToDataRoot"); } }
+        private String _Path;
+        public String Path { get => _Path; set { _Path = value; OnPropertyChanged("Path"); } }
         private Int32 _SelectedSizeIndex;
         public Int32 SelectedSizeIndex { get => _SelectedSizeIndex; set { _SelectedSizeIndex = value; OnPropertyChanged("IsOpenEnabled"); } }
+        private String _ErrorToleranceString = "1";
+        public String ErrorToleranceString { get => _ErrorToleranceString; set => _ErrorToleranceString = value; }
         private Int32 _SelectedAlgorithmIndex;
         public Int32 SelectedAlgorithmIndex { get => _SelectedAlgorithmIndex; set => _SelectedAlgorithmIndex = value; }
         public Boolean IsOpenEnabled { get => SelectedSizeIndex != -1; }
@@ -44,7 +47,7 @@ namespace DPTS.ViewModel
 
         // Gyűjtemény típusú properties (View számára)
 
-        private readonly String[] _ObservableSizes = { "All", "5", "10", "20", "50", "100", "200", "500" };
+        private readonly String[] _ObservableSizes = { "All", "5", "10", "20", "50", "100", "200", "500", "1000", "2000", "5000", "10000" };
         public String[] ObservableSizes { get => _ObservableSizes; }
         private readonly String[] _ObservableAlgorithms = { "SP", "SP-Prac", "SP-Theo", "SP-Both", "Intersect" };
         public String[] ObservableAlgorithms { get => _ObservableAlgorithms; }
@@ -65,7 +68,7 @@ namespace DPTS.ViewModel
 
             // inicializálások, kezdőállapot előállítása
 
-            PathToDataRoot = _pathToDataRoot;
+            Path = _pathExample;
             Results = new ObservableCollection<Result>();
 
             BrowseDataFolderCommand = new DelegateCommand(param => BrowseDataFolder());
@@ -73,64 +76,92 @@ namespace DPTS.ViewModel
             SimplifyTrajectoriesCommand = new DelegateCommand(param => SimplifyTrajectories());
         }
 
+        
         private void BrowseDataFolder()
         {
             // TODO : kiválasztani a root adat-foldert
             DataAlreadyReaded = false;
-            OnPropertyChanged("DataAlreadyReaded");
         }
+
 
         private void ReadAndLoad()
         {
-            StatusMessage = "Adatok beolvasása a forrásból...";
             Int32 limit = (ObservableSizes[SelectedSizeIndex] == "All") ? Int32.MaxValue  : Int32.Parse(ObservableSizes[SelectedSizeIndex]);
-            _Model.OpenAndLoadFromFile(DataType.PLT, PathToDataRoot, limit);
-            StatusMessage = "Adatok beolvasása KÉSZ.";
+            _Model.OpenAndLoadFromFile(DataType.PLT, Path, limit);
             DataAlreadyReaded = true;
             OnPropertyChanged("DataAlreadyReaded");
         }
 
+
         private void SimplifyTrajectories()
         {
+            // az interfészről érkező paraméterek ellenőrzése
+
+            if (!ParseStringToDouble(ref _ErrorTolerance, ErrorToleranceString))
+            {
+                MessageBox.Show("You must enter a valid floating point number as an error tolerance!", "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                return;
+            }
             if (SelectedAlgorithmIndex == -1)
             {
-                MessageBox.Show("Algoritmus megadása kötelező!", "DPTS", MessageBoxButton.OK);
+                MessageBox.Show("You must select an algorithm!", "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                return;
             }
 
+            AlgorithmType algorithm;
             switch (SelectedAlgorithmIndex)
             {
                 case 0:
                     // SP
-                    _Model.SimplifyTrajectories(AlgorithmType.SP);
+                    algorithm = AlgorithmType.SP;
                     break;
                 case 1:
                     // SP-Prac
-                    _Model.SimplifyTrajectories(AlgorithmType.SP_Prac);
+                    algorithm = AlgorithmType.SP_Prac;
                     break;
                 case 2:
                     // SP-Theo
-                    _Model.SimplifyTrajectories(AlgorithmType.SP_Theo);
+                    algorithm = AlgorithmType.SP_Theo;
                     break;
                 case 3:
                     // SP-Both
-                    _Model.SimplifyTrajectories(AlgorithmType.SP_Both);
+                    algorithm = AlgorithmType.SP_Both;
                     break;
                 case 4:
                     // Intersect
-                    _Model.SimplifyTrajectories(AlgorithmType.Intersect);
+                    algorithm = AlgorithmType.Intersect;
                     break;
                 default:
-                    break;
+                    throw new NotImplementedException();
+                    //break;
             }
+
+            _Model.SimplifyTrajectories(algorithm, _ErrorTolerance);
         }
+
+
+        private Boolean ParseStringToDouble(ref Double outNumber, String numberString)
+        {
+            return outNumber != 0 || Double.TryParse(numberString, out outNumber);
+        }
+
 
         private void OnErrorMessage(object sender, StringMessageArgs e)
         {
-            MessageBox.Show("Hiba:" + Environment.NewLine + e.Message, "DPTS", MessageBoxButton.OK);
+            MessageBox.Show("Hiba:" + Environment.NewLine + e.Message, "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
         }
+
 
         private void OnResultMessage(object sender, ResultMessageArgs e)
         {
+            if (e.Result_Type == ResultType.Reinitialize)
+            {
+                // törli a teljes tartalmat
+                Results = new ObservableCollection<Result>();
+                OnPropertyChanged("Results");
+                return;
+            }
+
             Result r = Results.FirstOrDefault(x => x.No == e.ID);
             if (r == null)
             {
@@ -168,6 +199,7 @@ namespace DPTS.ViewModel
             Results = new ObservableCollection<Result>(Results);
             OnPropertyChanged("Results");
         }
+
 
         private void OnStatusMessage(object sender, StringMessageArgs e)
         {
