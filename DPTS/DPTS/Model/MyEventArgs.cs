@@ -12,7 +12,7 @@ namespace DPTS.Model
         }
     }
 
-    public enum ResultType { Original, SP, SP_Prac, SP_Theo, SP_Both, Intersect, Reinitialize };
+    public enum ResultType { Original, SP, SP_Prac, SP_Theo, SP_Both, Intersect };
 
     public class ResultMessageArgs : EventArgs
     {
@@ -30,6 +30,16 @@ namespace DPTS.Model
             _Result_Type = resultType;
             _Length = length;
             _TimeInSecs = timeInSecs;
+        }
+    }
+
+    public class SimplifyStateMessageArgs : EventArgs
+    {
+        private Boolean _IsInProgress;
+        public Boolean IsInProgress { get => _IsInProgress; }
+        public SimplifyStateMessageArgs(Boolean isInProgress)
+        {
+            _IsInProgress = isInProgress;
         }
     }
 }

@@ -17,6 +17,8 @@ namespace DPTS.ViewModel
         // Privát adattagok
         private DPTSModel _Model;
         private Double _ErrorTolerance;
+        private Boolean _DataAlreadyRead;
+        private Boolean _SimplifyInProgress;
 
 
         // Publikus Properties (tulajdonságok) - ha csak a felületről szeretnénk módosítani, elég az automatikus getter/setter művelet
@@ -29,8 +31,9 @@ namespace DPTS.ViewModel
         public String ErrorToleranceString { get => _ErrorToleranceString; set => _ErrorToleranceString = value; }
         private Int32 _SelectedAlgorithmIndex;
         public Int32 SelectedAlgorithmIndex { get => _SelectedAlgorithmIndex; set => _SelectedAlgorithmIndex = value; }
-        public Boolean IsOpenEnabled { get => SelectedSizeIndex != -1; }
-        public Boolean DataAlreadyReaded { get; private set; }
+        public Boolean IsInputEnabled { get => !_SimplifyInProgress;  } 
+        public Boolean IsOpenEnabled { get => !_SimplifyInProgress && SelectedSizeIndex != -1; }
+        public Boolean IsSimplifyEnabled { get => _DataAlreadyRead && !_SimplifyInProgress; }
         private String _StatusMessage;
         public String StatusMessage { get => _StatusMessage; private set { _StatusMessage = value; OnPropertyChanged("StatusMessage"); } }
 
@@ -42,12 +45,13 @@ namespace DPTS.ViewModel
 
         public DelegateCommand BrowseDataFolderCommand { get; private set; }
         public DelegateCommand ReadAndLoadCommand { get; private set; }
+        public DelegateCommand SaveAsCommand { get; private set; }
         public DelegateCommand SimplifyTrajectoriesCommand { get; private set; }
 
 
         // Gyűjtemény típusú properties (View számára)
 
-        private readonly String[] _ObservableSizes = { "All", "5", "10", "20", "50", "100", "200", "500", "1000", "2000", "5000", "10000" };
+        private readonly String[] _ObservableSizes = { "All", "1", "2", "5", "10", "20", "50", "100", "200", "500", "1000", "2000", "5000", "10000" };
         public String[] ObservableSizes { get => _ObservableSizes; }
         private readonly String[] _ObservableAlgorithms = { "SP", "SP-Prac", "SP-Theo", "SP-Both", "Intersect" };
         public String[] ObservableAlgorithms { get => _ObservableAlgorithms; }
@@ -64,15 +68,19 @@ namespace DPTS.ViewModel
 
             _Model.ErrorMessage += new EventHandler<StringMessageArgs>(OnErrorMessage);
             _Model.ResultMessage += new EventHandler<ResultMessageArgs>(OnResultMessage);
+            _Model.SimplifyStateMessage += new EventHandler<SimplifyStateMessageArgs>(OnSimplifyStateMessage);
             _Model.StatusMessage += new EventHandler<StringMessageArgs>(OnStatusMessage);
 
             // inicializálások, kezdőállapot előállítása
 
+            _DataAlreadyRead = false;
+            _SimplifyInProgress = false;
             Path = _pathExample;
             Results = new ObservableCollection<Result>();
 
             BrowseDataFolderCommand = new DelegateCommand(param => BrowseDataFolder());
             ReadAndLoadCommand = new DelegateCommand(param => ReadAndLoad());
+            SaveAsCommand = new DelegateCommand(param => SaveAs());
             SimplifyTrajectoriesCommand = new DelegateCommand(param => SimplifyTrajectories());
         }
 
@@ -80,16 +88,29 @@ namespace DPTS.ViewModel
         private void BrowseDataFolder()
         {
             // TODO : kiválasztani a root adat-foldert
-            DataAlreadyReaded = false;
+            _DataAlreadyRead = false;
         }
 
 
         private void ReadAndLoad()
         {
+            // legfejlebb ennyi trajektóriát olvas be
             Int32 limit = (ObservableSizes[SelectedSizeIndex] == "All") ? Int32.MaxValue  : Int32.Parse(ObservableSizes[SelectedSizeIndex]);
+
+            // törli az eredmények teljes tartalmát
+            Results = new ObservableCollection<Result>();
+            OnPropertyChanged("Results");
+
             _Model.OpenAndLoadFromFile(DataType.PLT, Path, limit);
-            DataAlreadyReaded = true;
-            OnPropertyChanged("DataAlreadyReaded");
+
+            _DataAlreadyRead = true;
+            OnPropertyChanged("");
+        }
+
+
+        private void SaveAs()
+        {
+            _Model.SaveAllToKML();
         }
 
 
@@ -107,6 +128,8 @@ namespace DPTS.ViewModel
                 MessageBox.Show("You must select an algorithm!", "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
                 return;
             }
+
+            _SimplifyInProgress = true;
 
             AlgorithmType algorithm;
             switch (SelectedAlgorithmIndex)
@@ -142,7 +165,7 @@ namespace DPTS.ViewModel
 
         private Boolean ParseStringToDouble(ref Double outNumber, String numberString)
         {
-            return outNumber != 0 || Double.TryParse(numberString, out outNumber);
+            return Double.TryParse(numberString, out outNumber);
         }
 
 
@@ -154,14 +177,6 @@ namespace DPTS.ViewModel
 
         private void OnResultMessage(object sender, ResultMessageArgs e)
         {
-            if (e.Result_Type == ResultType.Reinitialize)
-            {
-                // törli a teljes tartalmat
-                Results = new ObservableCollection<Result>();
-                OnPropertyChanged("Results");
-                return;
-            }
-
             Result r = Results.FirstOrDefault(x => x.No == e.ID);
             if (r == null)
             {
@@ -201,14 +216,30 @@ namespace DPTS.ViewModel
 
             if (e.Result_Type != ResultType.Original)
             {
-                StatusMessage = _Model.GetStatusStringOfSimplify();
+        //        StatusMessage = _Model.GetStatusStringOfSimplify();
             }
+        }
+
+
+        private void OnSimplifyStateMessage(object sender, SimplifyStateMessageArgs e)
+        {
+            _SimplifyInProgress = e.IsInProgress;
+            OnPropertyChanged("IsInputEnabled");
+            OnPropertyChanged("IsOpenEnabled");
+            OnPropertyChanged("IsSimplifyEnabled");
         }
 
 
         private void OnStatusMessage(object sender, StringMessageArgs e)
         {
             StatusMessage = e.Message;
+        }
+
+
+        private void SetDataAlreadyRead(Boolean value)
+        {
+            _DataAlreadyRead = value;
+            OnPropertyChanged("IsSimplifyEnabled");
         }
     }
 }

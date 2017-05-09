@@ -6,6 +6,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Xml;
 
 namespace DPTS.Model
 {
@@ -27,6 +28,7 @@ namespace DPTS.Model
 
         public event EventHandler<StringMessageArgs> ErrorMessage;
         public event EventHandler<ResultMessageArgs> ResultMessage;
+        public event EventHandler<SimplifyStateMessageArgs> SimplifyStateMessage;
         public event EventHandler<StringMessageArgs> StatusMessage;
 
 
@@ -53,7 +55,6 @@ namespace DPTS.Model
             }
 
             InitializeTrajectoriesAndResults();
-            SendResultMessageFromThread(0, ResultType.Reinitialize, 0, 0);
 
             Task task = Task.Run(() =>
             {
@@ -148,6 +149,8 @@ namespace DPTS.Model
 
         public void SimplifyTrajectories(AlgorithmType algorithm_type, Double errorTolerance)
         {
+            SimplifyStateMessage(this, new SimplifyStateMessageArgs(true));
+
             _SimplifiedTrajectories = new ConcurrentBag<Trajectory>();
 
             switch (algorithm_type)
@@ -216,13 +219,18 @@ namespace DPTS.Model
                         Double timeDifference = (DateTime.Now - timeStart).TotalSeconds;
                         _SimplifiedTrajectories.Add(t);
                         SendResultMessageFromThread(j, resultType, t.NumberOfPoints, timeDifference);
+                        SendStatusMessageFromThread(GetStatusStringOfSimplify());
+                        if (_SimplifiedTrajectories.Count == _OriginalTrajectories.Count)
+                        {
+                            SendSimplifyStateMessageFromThread(false);
+                        }
                     }
                 });
             }
         }
 
 
-        public String GetStatusStringOfSimplify()
+        private String GetStatusStringOfSimplify()
         {
             return "Simplify by algorithm " + _AlgorithmName + (_SimplifiedTrajectories.Count == _OriginalTrajectories.Count ? " ENDED" :("... - " + _SimplifiedTrajectories.Count + " / " + _OriginalTrajectories.Count));
         }
@@ -620,9 +628,116 @@ namespace DPTS.Model
             Application.Current.Dispatcher.Invoke(new Action(() => { ResultMessage(this, new ResultMessageArgs(id, resultType, length, timeInSecs)); }));
         }
 
+
+        private void SendSimplifyStateMessageFromThread(Boolean state)
+        {
+            Application.Current.Dispatcher.Invoke(new Action(() => { SimplifyStateMessage(this, new SimplifyStateMessageArgs(state)); }));
+        }
+
+
         private void SendStatusMessageFromThread(String message)
         {
             Application.Current.Dispatcher.Invoke(new Action(() => { StatusMessage(this, new StringMessageArgs(message)); }));
+        }
+
+
+        public void SaveAllToKML()
+        {
+            {
+                String name = "polyline_original";
+                XmlDocument xmlDoc = new XmlDocument();
+                XmlNode kmlNode = xmlDoc.CreateElement("kml");
+                XmlAttribute xmlnsAttribute = xmlDoc.CreateAttribute("xmlns");
+                xmlnsAttribute.Value = "http://www.opengis.net/kml/2.2";
+                kmlNode.Attributes.Append(xmlnsAttribute);
+                XmlNode documentNode = xmlDoc.CreateElement("Document");
+                XmlAttribute idAttribute = xmlDoc.CreateAttribute("id");
+                idAttribute.Value = name;
+                documentNode.Attributes.Append(idAttribute);
+                XmlNode folderNode = xmlDoc.CreateElement("Folder");
+                XmlNode nameNode = xmlDoc.CreateElement("name");
+                nameNode.InnerText = "original";
+                folderNode.AppendChild(nameNode);
+                for (Int32 i = 0; i < _OriginalTrajectories.Count; ++i)
+                {
+                    Trajectory trajectory = _OriginalTrajectories[i];
+                    XmlNode placemarkNode = xmlDoc.CreateElement("Placemark");
+                    XmlNode styleNode = xmlDoc.CreateElement("Style");
+                    XmlNode lineStyleNode = xmlDoc.CreateElement("LineStyle");
+                    XmlNode colorNode = xmlDoc.CreateElement("color");
+                    colorNode.InnerText = "ff0000ff";
+                    lineStyleNode.AppendChild(colorNode);
+                    styleNode.AppendChild(lineStyleNode);
+                    placemarkNode.AppendChild(styleNode);
+                    XmlNode lineStringNode = xmlDoc.CreateElement("LineString");
+                    XmlNode altitudeModeNode = xmlDoc.CreateElement("altitudeMode");
+                    altitudeModeNode.InnerText = "clampToGround";
+                    lineStringNode.AppendChild(altitudeModeNode);
+                    XmlNode coordinatesNode = xmlDoc.CreateElement("coordinates");
+                    coordinatesNode.InnerText = trajectory[0].Latitude + "," + trajectory[0].Longitude;
+                    for (Int32 j = 0; j < trajectory.NumberOfPoints; ++j)
+                    {
+                        coordinatesNode.InnerText += " " + trajectory[j].Latitude + "," + trajectory[j].Longitude;
+                    }
+                    lineStringNode.AppendChild(coordinatesNode);
+                    placemarkNode.AppendChild(lineStringNode);
+                    folderNode.AppendChild(placemarkNode);
+                }
+                documentNode.AppendChild(folderNode);
+                kmlNode.AppendChild(documentNode);
+                xmlDoc.AppendChild(kmlNode);
+                XmlDeclaration xmldecl = xmlDoc.CreateXmlDeclaration("1.0", "utf-8", null);
+                xmlDoc.InsertBefore(xmldecl, xmlDoc.DocumentElement);
+                xmlDoc.Save("C:\\Users\\User\\Documents\\Terinformatika\\output\\" + name + ".kml");
+            }
+            {
+                String name = "polyline_simplified_optimal";
+                XmlDocument xmlDoc = new XmlDocument();
+                xmlDoc.CreateXmlDeclaration("1.0", "utf-8", null);
+                XmlNode kmlNode = xmlDoc.CreateElement("kml");
+                XmlAttribute xmlnsAttribute = xmlDoc.CreateAttribute("xmlns");
+                xmlnsAttribute.Value = "http://www.opengis.net/kml/2.2";
+                kmlNode.Attributes.Append(xmlnsAttribute);
+                XmlNode documentNode = xmlDoc.CreateElement("Document");
+                XmlAttribute idAttribute = xmlDoc.CreateAttribute("id");
+                idAttribute.Value = name;
+                documentNode.Attributes.Append(idAttribute);
+                XmlNode folderNode = xmlDoc.CreateElement("Folder");
+                XmlNode nameNode = xmlDoc.CreateElement("name");
+                nameNode.InnerText = "original";
+                folderNode.AppendChild(nameNode);
+                for (Int32 i = 0; i < _SimplifiedTrajectories.Count; ++i)
+                {
+                    Trajectory trajectory = _OriginalTrajectories[i];
+                    XmlNode placemarkNode = xmlDoc.CreateElement("Placemark");
+                    XmlNode styleNode = xmlDoc.CreateElement("Style");
+                    XmlNode lineStyleNode = xmlDoc.CreateElement("LineStyle");
+                    XmlNode colorNode = xmlDoc.CreateElement("color");
+                    colorNode.InnerText = "00ffff00";
+                    lineStyleNode.AppendChild(colorNode);
+                    styleNode.AppendChild(lineStyleNode);
+                    placemarkNode.AppendChild(styleNode);
+                    XmlNode lineStringNode = xmlDoc.CreateElement("LineString");
+                    XmlNode altitudeModeNode = xmlDoc.CreateElement("altitudeMode");
+                    altitudeModeNode.InnerText = "clampToGround";
+                    lineStringNode.AppendChild(altitudeModeNode);
+                    XmlNode coordinatesNode = xmlDoc.CreateElement("coordinates");
+                    coordinatesNode.InnerText = trajectory[0].Latitude + "," + trajectory[0].Longitude;
+                    for (Int32 j = 0; j < trajectory.NumberOfPoints; ++j)
+                    {
+                        coordinatesNode.InnerText += " " + trajectory[j].Latitude + "," + trajectory[j].Longitude;
+                    }
+                    lineStringNode.AppendChild(coordinatesNode);
+                    placemarkNode.AppendChild(lineStringNode);
+                    folderNode.AppendChild(placemarkNode);
+                }
+                documentNode.AppendChild(folderNode);
+                kmlNode.AppendChild(documentNode);
+                xmlDoc.AppendChild(kmlNode);
+                XmlDeclaration xmldecl = xmlDoc.CreateXmlDeclaration("1.0", "utf-8", null);
+                xmlDoc.InsertBefore(xmldecl, xmlDoc.DocumentElement);
+                xmlDoc.Save("C:\\Users\\User\\Documents\\Terinformatika\\output\\" + name + ".kml");
+            }
         }
     }
 }
