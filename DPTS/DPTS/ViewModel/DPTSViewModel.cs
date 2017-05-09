@@ -76,7 +76,7 @@ namespace DPTS.ViewModel
 
             _DataAlreadyRead = false;
             _SimplifyInProgress = false;
-       //     Path = _pathExample;
+            Path = _pathExample;
             Results = new ObservableCollection<Result>();
 
             OpenFileAsDataSourceCommand = new DelegateCommand(x => OpenFileAsDataSource());

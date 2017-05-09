@@ -2,17 +2,8 @@
 
 namespace DPTS.Model
 {
-    public class StringMessageArgs : EventArgs
-    {
-        private String _Message;
-        public String Message { get => _Message; }
-        public StringMessageArgs(String message)
-        {
-            _Message = message;
-        }
-    }
-
     public enum ResultType { Original, SP, SP_Prac, SP_Theo, SP_Both, Intersect };
+
 
     public class ResultMessageArgs : EventArgs
     {
@@ -33,6 +24,18 @@ namespace DPTS.Model
         }
     }
 
+
+    public class SimplifyEndedMessageArgs : EventArgs
+    {
+        private AlgorithmType _AlgType;
+        public AlgorithmType AlgType { get => _AlgType; }
+        public SimplifyEndedMessageArgs(AlgorithmType algType)
+        {
+            _AlgType = algType;
+        }
+    }
+
+
     public class SimplifyStateMessageArgs : EventArgs
     {
         private Boolean _IsInProgress;
@@ -40,6 +43,17 @@ namespace DPTS.Model
         public SimplifyStateMessageArgs(Boolean isInProgress)
         {
             _IsInProgress = isInProgress;
+        }
+    }
+
+
+    public class StringMessageArgs : EventArgs
+    {
+        private String _Message;
+        public String Message { get => _Message; }
+        public StringMessageArgs(String message)
+        {
+            _Message = message;
         }
     }
 }
