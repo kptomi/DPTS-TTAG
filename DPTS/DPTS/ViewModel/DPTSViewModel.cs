@@ -27,6 +27,8 @@ namespace DPTS.ViewModel
 
         private String _Path;
         public String Path { get => _Path; set { _Path = value; OnPropertyChanged("Path"); } }
+        private Int32 _SelectedDatasetIndex;
+        public Int32 SelectedDatasetIndex { get => _SelectedDatasetIndex; set { _SelectedDatasetIndex = value; OnPropertyChanged("IsOpenEnabled"); } }
         private Int32 _SelectedSizeIndex;
         public Int32 SelectedSizeIndex { get => _SelectedSizeIndex; set { _SelectedSizeIndex = value; OnPropertyChanged("IsOpenEnabled"); } }
         private String _ErrorToleranceString = "1";
@@ -34,7 +36,7 @@ namespace DPTS.ViewModel
         private Int32 _SelectedAlgorithmIndex;
         public Int32 SelectedAlgorithmIndex { get => _SelectedAlgorithmIndex; set => _SelectedAlgorithmIndex = value; }
         public Boolean IsInputEnabled { get => !_SimplifyInProgress;  } 
-        public Boolean IsOpenEnabled { get => !_SimplifyInProgress && SelectedSizeIndex != -1; }
+        public Boolean IsOpenEnabled { get => !_SimplifyInProgress && SelectedDatasetIndex != -1 && SelectedSizeIndex != -1; }
         public Boolean IsSimplifyEnabled { get => _DataAlreadyRead && !_SimplifyInProgress; }
         private String _StatusMessage;
         public String StatusMessage { get => _StatusMessage; private set { _StatusMessage = value; OnPropertyChanged("StatusMessage"); } }
@@ -52,10 +54,12 @@ namespace DPTS.ViewModel
 
         // Gyűjtemény típusú properties (View számára)
 
-        private readonly String[] _ObservableSizes = { "All", "1", "2", "5", "10", "20", "50", "100", "200", "500", "1000", "2000", "5000", "10000" };
-        public String[] ObservableSizes { get => _ObservableSizes; }
         private readonly String[] _ObservableAlgorithms = { "SP", "SP-Prac", "SP-Theo", "SP-Both", "Intersect" };
         public String[] ObservableAlgorithms { get => _ObservableAlgorithms; }
+        private readonly String[] _ObservableDatasets = { "Geolife", "T-Drive" };
+        public String[] ObservableDatasets { get => _ObservableDatasets; }
+        private readonly String[] _ObservableSizes = { "All", "1", "2", "5", "10", "20", "50", "100", "200", "500", "1000", "2000", "5000", "10000" };
+        public String[] ObservableSizes { get => _ObservableSizes; }
         public ObservableCollection<Result> Results { get; private set; }
 
 
@@ -76,7 +80,7 @@ namespace DPTS.ViewModel
 
             _DataAlreadyRead = false;
             _SimplifyInProgress = false;
-            Path = _pathExample;
+            //Path = _pathExample;
             Results = new ObservableCollection<Result>();
 
             OpenFileAsDataSourceCommand = new DelegateCommand(x => OpenFileAsDataSource());
@@ -143,7 +147,21 @@ namespace DPTS.ViewModel
             Results = new ObservableCollection<Result>();
             OnPropertyChanged("Results");
 
-            _Model.OpenAndLoadFromFile(DataType.PLT, Path, limit);
+            DatasetType type;
+            switch (SelectedDatasetIndex)
+            {
+                case 0:
+                    type = DatasetType.Geolife;
+                    break;
+                case 1:
+                    type = DatasetType.T_Drive;
+                    break;
+                default:
+                    throw new NotImplementedException();
+                    //break;
+            }
+
+            _Model.OpenAndLoadFromFile(type, Path, limit);
 
             SetDataAlreadyRead(true);
         }

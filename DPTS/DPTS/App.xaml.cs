@@ -28,8 +28,8 @@ namespace DPTS
         protected override void OnStartup(StartupEventArgs e)
         {
             // kultúrkörnyezet beállítása magyarra
-            Thread.CurrentThread.CurrentCulture = new CultureInfo("hu-HU");
-            Thread.CurrentThread.CurrentUICulture = new CultureInfo("hu-HU");
+            Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
+            Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-US");
             FrameworkElement.LanguageProperty.OverrideMetadata(typeof(FrameworkElement),
                 new FrameworkPropertyMetadata(XmlLanguage.GetLanguage(CultureInfo.CurrentCulture.IetfLanguageTag)));
             base.OnStartup(e);

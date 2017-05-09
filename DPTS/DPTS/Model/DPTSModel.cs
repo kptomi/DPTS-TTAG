@@ -10,7 +10,7 @@ using System.Xml;
 
 namespace DPTS.Model
 {
-    public enum DataType { PLT };
+    public enum DatasetType { Geolife, T_Drive };
 
     public enum AlgorithmType { SP, SP_Prac, SP_Theo, SP_Both, Intersect };
 
@@ -57,7 +57,7 @@ namespace DPTS.Model
         }
 
 
-        public void OpenAndLoadFromFile(DataType dataType, String path, Int32 limit) {
+        public void OpenAndLoadFromFile(DatasetType dataType, String path, Int32 limit) {
             if (!File.Exists(path) &&!Directory.Exists(path))
             {
                 ErrorMessage(this, new StringMessageArgs("Browsed file or directory does not exist."));
@@ -83,7 +83,7 @@ namespace DPTS.Model
         }
 
 
-        private Int32 SearchFilesInDirectory(DataType dataType, String path, Int32 limit, Int32 numberProcessedFiles)
+        private Int32 SearchFilesInDirectory(DatasetType dataType, String path, Int32 limit, Int32 numberProcessedFiles)
         {
             String[] fileEntries = Directory.GetFiles(path);
             for (Int32 i = 0; numberProcessedFiles < limit && i < fileEntries.Length; ++i)
@@ -105,17 +105,25 @@ namespace DPTS.Model
         }
 
 
-        private Boolean ProcessFile(DataType dataType, String fileName)
+        private Boolean ProcessFile(DatasetType dataType, String fileName)
         {
             Boolean success = false;
 
             switch (dataType)
             {
-                case DataType.PLT:
-                    Regex rx = new Regex(@"\.plt$");
-                    if (rx.IsMatch(fileName))
+                case DatasetType.Geolife:
+                    Regex rx1 = new Regex(@"\.plt$");
+                    if (rx1.IsMatch(fileName))
                     {
-                        ProcessPLTFile(fileName);
+                        ProcessFileFromGeolife(fileName);
+                        success = true;
+                    }
+                    break;
+                case DatasetType.T_Drive:
+                    Regex rx2 = new Regex(@"\.txt$");
+                    if (rx2.IsMatch(fileName))
+                    {
+                        ProcessFileFromT_Drive(fileName);
                         success = true;
                     }
                     break;
@@ -127,7 +135,7 @@ namespace DPTS.Model
         }
 
 
-        private void ProcessPLTFile(String filename)
+        private void ProcessFileFromGeolife(String filename)
         {
             String input;
             String[] inputArray;
@@ -149,6 +157,31 @@ namespace DPTS.Model
                     startTime = inputArray[5] + " " + inputArray[6];
                 }
                 endTime = inputArray[5] + " " + inputArray[6];
+            }
+            trajectory.setStartTime(startTime);
+            trajectory.setEndTime(endTime);
+            _OriginalTrajectories.Add(trajectory);
+            SendResultMessageFromThread(_OriginalTrajectories.Count - 1, ResultType.Original, trajectory.NumberOfPoints, 0);
+        }
+
+
+        private void ProcessFileFromT_Drive(String filename)
+        {
+            String input;
+            String[] inputArray;
+            StreamReader IFile = new StreamReader(filename);
+            
+            Trajectory trajectory = new Trajectory();
+            String startTime = "", endTime = "";
+            while (!String.IsNullOrEmpty(input = IFile.ReadLine()))
+            {
+                inputArray = input.Split(',');
+                trajectory.Add(new Point(Single.Parse(inputArray[2], new CultureInfo("en-US")), Single.Parse(inputArray[3], new CultureInfo("en-US"))));
+                if (String.IsNullOrEmpty(startTime))
+                {
+                    startTime = inputArray[1];
+                }
+                endTime = inputArray[1];
             }
             trajectory.setStartTime(startTime);
             trajectory.setEndTime(endTime);

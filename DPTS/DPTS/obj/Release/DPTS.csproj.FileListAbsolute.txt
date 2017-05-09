@@ -1,0 +1,12 @@
+C:\Users\User\documents\visual studio 2017\Projects\DPTS\DPTS\bin\Release\DPTS.exe.config
+C:\Users\User\documents\visual studio 2017\Projects\DPTS\DPTS\bin\Release\DPTS.exe
+C:\Users\User\documents\visual studio 2017\Projects\DPTS\DPTS\bin\Release\DPTS.pdb
+C:\Users\User\documents\visual studio 2017\Projects\DPTS\DPTS\obj\Release\View\MainWindow.baml
+C:\Users\User\documents\visual studio 2017\Projects\DPTS\DPTS\obj\Release\View\MainWindow.g.cs
+C:\Users\User\documents\visual studio 2017\Projects\DPTS\DPTS\obj\Release\App.g.cs
+C:\Users\User\documents\visual studio 2017\Projects\DPTS\DPTS\obj\Release\DPTS_MarkupCompile.cache
+C:\Users\User\documents\visual studio 2017\Projects\DPTS\DPTS\obj\Release\DPTS.g.resources
+C:\Users\User\documents\visual studio 2017\Projects\DPTS\DPTS\obj\Release\DPTS.Properties.Resources.resources
+C:\Users\User\documents\visual studio 2017\Projects\DPTS\DPTS\obj\Release\DPTS.csproj.GenerateResource.Cache
+C:\Users\User\documents\visual studio 2017\Projects\DPTS\DPTS\obj\Release\DPTS.exe
+C:\Users\User\documents\visual studio 2017\Projects\DPTS\DPTS\obj\Release\DPTS.pdb
