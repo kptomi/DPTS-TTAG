@@ -641,7 +641,7 @@ namespace DPTS.Model
         }
 
 
-        public void SaveAllToKML()
+        public void ExportToKML(String path)
         {
             {
                 String name = "polyline_original";
@@ -688,7 +688,7 @@ namespace DPTS.Model
                 xmlDoc.AppendChild(kmlNode);
                 XmlDeclaration xmldecl = xmlDoc.CreateXmlDeclaration("1.0", "utf-8", null);
                 xmlDoc.InsertBefore(xmldecl, xmlDoc.DocumentElement);
-                xmlDoc.Save("C:\\Users\\User\\Documents\\Terinformatika\\output\\" + name + ".kml");
+                xmlDoc.Save(path + "\\" + name + ".kml");
             }
             {
                 String name = "polyline_simplified_optimal";
@@ -736,7 +736,7 @@ namespace DPTS.Model
                 xmlDoc.AppendChild(kmlNode);
                 XmlDeclaration xmldecl = xmlDoc.CreateXmlDeclaration("1.0", "utf-8", null);
                 xmlDoc.InsertBefore(xmldecl, xmlDoc.DocumentElement);
-                xmlDoc.Save("C:\\Users\\User\\Documents\\Terinformatika\\output\\" + name + ".kml");
+                xmlDoc.Save(path + "\\" + name + ".kml");
             }
         }
     }

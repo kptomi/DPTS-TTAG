@@ -2,6 +2,7 @@
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
+using System.Windows.Forms;
 
 using DPTS.Model;
 
@@ -44,8 +45,9 @@ namespace DPTS.ViewModel
         // Delegate Commands
 
         public DelegateCommand BrowseDataFolderCommand { get; private set; }
+        public DelegateCommand ExitCommand { get; private set; }
+        public DelegateCommand ExportResultsToKMLCommand { get; private set; }
         public DelegateCommand ReadAndLoadCommand { get; private set; }
-        public DelegateCommand SaveAsCommand { get; private set; }
         public DelegateCommand SimplifyTrajectoriesCommand { get; private set; }
 
 
@@ -78,10 +80,11 @@ namespace DPTS.ViewModel
             Path = _pathExample;
             Results = new ObservableCollection<Result>();
 
-            BrowseDataFolderCommand = new DelegateCommand(param => BrowseDataFolder());
-            ReadAndLoadCommand = new DelegateCommand(param => ReadAndLoad());
-            SaveAsCommand = new DelegateCommand(param => SaveAs());
-            SimplifyTrajectoriesCommand = new DelegateCommand(param => SimplifyTrajectories());
+            BrowseDataFolderCommand = new DelegateCommand(x => BrowseDataFolder());
+            ExitCommand = new DelegateCommand(x => System.Windows.Application.Current.Shutdown());
+            ExportResultsToKMLCommand = new DelegateCommand(x => ExportResultsToKML());
+            ReadAndLoadCommand = new DelegateCommand(x => ReadAndLoad());
+            SimplifyTrajectoriesCommand = new DelegateCommand(x => SimplifyTrajectories());
         }
 
         
@@ -108,9 +111,19 @@ namespace DPTS.ViewModel
         }
 
 
-        private void SaveAs()
+        private void ExportResultsToKML()
         {
-            _Model.SaveAllToKML();
+            StatusMessage = "Export all results to KML...";
+            FolderBrowserDialog dial = new FolderBrowserDialog();
+            if (dial.ShowDialog() == DialogResult.OK)
+            {
+                _Model.ExportToKML(dial.SelectedPath);
+                StatusMessage = "Results have been saved to " + dial.SelectedPath;
+            }
+            else
+            {
+                StatusMessage = "Export has been cancelled";
+            }
         }
 
 
@@ -120,12 +133,12 @@ namespace DPTS.ViewModel
 
             if (!ParseStringToDouble(ref _ErrorTolerance, ErrorToleranceString))
             {
-                MessageBox.Show("You must enter a valid floating point number as an error tolerance!", "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                System.Windows.MessageBox.Show("You must enter a valid floating point number as an error tolerance!", "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
                 return;
             }
             if (SelectedAlgorithmIndex == -1)
             {
-                MessageBox.Show("You must select an algorithm!", "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                System.Windows.MessageBox.Show("You must select an algorithm!", "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
                 return;
             }
 
@@ -171,7 +184,7 @@ namespace DPTS.ViewModel
 
         private void OnErrorMessage(object sender, StringMessageArgs e)
         {
-            MessageBox.Show("Hiba:" + Environment.NewLine + e.Message, "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+            System.Windows.MessageBox.Show("Hiba:" + Environment.NewLine + e.Message, "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
         }
 
 
