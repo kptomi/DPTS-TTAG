@@ -198,6 +198,11 @@ namespace DPTS.ViewModel
             }
             Results = new ObservableCollection<Result>(Results);
             OnPropertyChanged("Results");
+
+            if (e.Result_Type != ResultType.Original)
+            {
+                StatusMessage = _Model.GetStatusStringOfSimplify();
+            }
         }
 
 

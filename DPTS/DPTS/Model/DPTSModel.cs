@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -18,7 +19,8 @@ namespace DPTS.Model
         // Privát adattagok
 
         private List<Trajectory> _OriginalTrajectories;
-        private List<Trajectory> _SimplifiedTrajectories;
+        private ConcurrentBag<Trajectory> _SimplifiedTrajectories;
+        private String _AlgorithmName = "";
 
 
         // Események (a viewmodel-nek)
@@ -39,7 +41,7 @@ namespace DPTS.Model
         private void InitializeTrajectoriesAndResults()
         {
             _OriginalTrajectories = new List<Trajectory>();
-            _SimplifiedTrajectories = new List<Trajectory>();
+            _SimplifiedTrajectories = new ConcurrentBag<Trajectory>();
         }
 
 
@@ -78,7 +80,7 @@ namespace DPTS.Model
                 if (ProcessFile(dataType, fileEntries[i]))
                 {
                     ++numberProcessedFiles;
-                    SendStatusMessageFromThread("Load trajectory data from data source... " + numberProcessedFiles  + "/ " + limit);
+                    SendStatusMessageFromThread("Load trajectory data from data source... - " + numberProcessedFiles  + " / " + limit);
                 }
             }
 
@@ -107,8 +109,7 @@ namespace DPTS.Model
                     }
                     break;
                 default:
-                    throw new NotImplementedException();
-                    //break;
+                    break;
             }
 
             return success;
@@ -147,92 +148,83 @@ namespace DPTS.Model
 
         public void SimplifyTrajectories(AlgorithmType algorithm_type, Double errorTolerance)
         {
-            Task task = Task.Run(() =>
+            _SimplifiedTrajectories = new ConcurrentBag<Trajectory>();
+
+            switch (algorithm_type)
             {
-                switch (algorithm_type)
+                case AlgorithmType.SP:
+                    _AlgorithmName = "SP";
+                    break;
+                case AlgorithmType.SP_Prac:
+                    _AlgorithmName = "SP-Prac";
+                    break;
+                case AlgorithmType.SP_Theo:
+                    _AlgorithmName = "SP-Theo";
+                    break;
+                case AlgorithmType.SP_Both:
+                    _AlgorithmName = "SP-Both";
+                    break;
+                case AlgorithmType.Intersect:
+                    _AlgorithmName = "Intersect";
+                    break;
+                default:
+                    break;
+            }
+
+            StatusMessage(this, new StringMessageArgs(GetStatusStringOfSimplify()));
+
+            Int32 procNo = (Environment.ProcessorCount <= 1) ? 1 : Environment.ProcessorCount - 1;
+            for (Int32 i = 0; i < procNo; ++i)
+            {
+                Int32 currentI = i;
+                Task task = Task.Run(() =>
                 {
-                    case AlgorithmType.SP:
-                        StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP algoritmussal... 0/" + _OriginalTrajectories.Count));
-                        for (Int32 i = 0; i < _OriginalTrajectories.Count; ++i)
+                    for (Int32 j = currentI; j < _OriginalTrajectories.Count; j += procNo)
+                    {
+                        // step 0
+                        // egymás utáni azonos pontok sorozatának helyettesítése egyetlen ponttal
+                        Trajectory removedSeqsFromTrajectory = RemoveSequences(_OriginalTrajectories[j]);
+                        DateTime timeStart = DateTime.Now;
+                        Trajectory t;
+                        ResultType resultType;
+                        switch (algorithm_type)
                         {
-                            StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP algoritmussal... " + (i + 1) + "/" + _OriginalTrajectories.Count));
-                            // step 0
-                            // egymás utáni azonos pontok sorozatának helyettesítése egyetlen ponttal
-                            Trajectory removedSeqsFromTrajectory = RemoveSequences(_OriginalTrajectories[i]);
-                            DateTime timeStart = DateTime.Now;
-                            Trajectory t = SimplifyBySP(removedSeqsFromTrajectory, errorTolerance);
-                            Double timeDifference = (DateTime.Now - timeStart).TotalSeconds;
-                            _SimplifiedTrajectories.Add(t);
-                            SendResultMessageFromThread(i, ResultType.SP, t.NumberOfPoints, timeDifference);
+                            case AlgorithmType.SP:
+                                t = SimplifyBySP(removedSeqsFromTrajectory, errorTolerance);
+                                resultType = ResultType.SP;
+                                break;
+                            case AlgorithmType.SP_Prac:
+                                t = SimplifyBySP_Prac(removedSeqsFromTrajectory, errorTolerance);
+                                resultType = ResultType.SP_Prac;
+                                break;
+                            case AlgorithmType.SP_Theo:
+                                t = SimplifyBySP_Theo(removedSeqsFromTrajectory, errorTolerance);
+                                resultType = ResultType.SP_Theo;
+                                break;
+                            case AlgorithmType.SP_Both:
+                                t = SimplifyBySP_Both(removedSeqsFromTrajectory, errorTolerance);
+                                resultType = ResultType.SP_Both;
+                                break;
+                            case AlgorithmType.Intersect:
+                                t = SimplifyByIntersectAlg(removedSeqsFromTrajectory, errorTolerance);
+                                resultType = ResultType.Intersect;
+                                break;
+                            default:
+                                throw new NotImplementedException();
+                                //break;
                         }
-                        StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP algoritmussal KÉSZ."));
-                        break;
-                    case AlgorithmType.SP_Prac:
-                        StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Prac algoritmussal... 0/" + _OriginalTrajectories.Count));
-                        for (Int32 i = 0; i < _OriginalTrajectories.Count; ++i)
-                        {
-                            StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Prac algoritmussal... " + (i + 1) + "/" + _OriginalTrajectories.Count));
-                            // step 0
-                            // egymás utáni azonos pontok sorozatának helyettesítése egyetlen ponttal
-                            Trajectory removedSeqsFromTrajectory = RemoveSequences(_OriginalTrajectories[i]);
-                            DateTime timeStart = DateTime.Now;
-                            Trajectory t = SimplifyBySP_Prac(removedSeqsFromTrajectory, errorTolerance);
-                            Double timeDifference = (DateTime.Now - timeStart).TotalSeconds;
-                            _SimplifiedTrajectories.Add(t);
-                            SendResultMessageFromThread(i, ResultType.SP_Prac, t.NumberOfPoints, timeDifference);
-                        }
-                        StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Prac algoritmussal KÉSZ."));
-                        break;
-                    case AlgorithmType.SP_Theo:
-                        StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Theo algoritmussal... 0/" + _OriginalTrajectories.Count));
-                        for (Int32 i = 0; i < _OriginalTrajectories.Count; ++i)
-                        {
-                            StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Theo algoritmussal... " + (i + 1) + "/" + _OriginalTrajectories.Count));
-                            // step 0
-                            // egymás utáni azonos pontok sorozatának helyettesítése egyetlen ponttal
-                            Trajectory removedSeqsFromTrajectory = RemoveSequences(_OriginalTrajectories[i]);
-                            DateTime timeStart = DateTime.Now;
-                            Trajectory t = SimplifyBySP_Theo(removedSeqsFromTrajectory, errorTolerance);
-                            Double timeDifference = (DateTime.Now - timeStart).TotalSeconds;
-                            _SimplifiedTrajectories.Add(t);
-                            SendResultMessageFromThread(i, ResultType.SP_Theo, t.NumberOfPoints, timeDifference);
-                        }
-                        StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Theo algoritmussal KÉSZ."));
-                        break;
-                    case AlgorithmType.SP_Both:
-                        StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Both algoritmussal... 0/" + _OriginalTrajectories.Count));
-                        for (Int32 i = 0; i < _OriginalTrajectories.Count; ++i)
-                        {
-                            StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Both algoritmussal... " + (i + 1) + "/" + _OriginalTrajectories.Count));
-                            // step 0
-                            // egymás utáni azonos pontok sorozatának helyettesítése egyetlen ponttal
-                            Trajectory removedSeqsFromTrajectory = RemoveSequences(_OriginalTrajectories[i]);
-                            DateTime timeStart = DateTime.Now;
-                            Trajectory t = SimplifyBySP_Both(removedSeqsFromTrajectory, errorTolerance);
-                            Double timeDifference = (DateTime.Now - timeStart).TotalSeconds;
-                            _SimplifiedTrajectories.Add(t);
-                            SendResultMessageFromThread(i, ResultType.SP_Both, t.NumberOfPoints, timeDifference);
-                        }
-                        StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Both algoritmussal KÉSZ."));
-                        break;
-                    case AlgorithmType.Intersect:
-                        for (Int32 i = 0; i < _OriginalTrajectories.Count; ++i)
-                        {
-                            StatusMessage(this, new StringMessageArgs("Egyszerűsítés az Intersect algoritmussal... " + (i + 1) + "/" + _OriginalTrajectories.Count));
-                            // step 0
-                            // egymás utáni azonos pontok sorozatának helyettesítése egyetlen ponttal
-                            Trajectory removedSeqsFromTrajectory = RemoveSequences(_OriginalTrajectories[i]);
-                            DateTime timeStart = DateTime.Now;
-                            Trajectory t = SimplifyByIntersectAlg(removedSeqsFromTrajectory, errorTolerance);
-                            Double timeDifference = (DateTime.Now - timeStart).TotalSeconds;
-                            _SimplifiedTrajectories.Add(t);
-                            SendResultMessageFromThread(i, ResultType.Intersect, t.NumberOfPoints, timeDifference);
-                        }
-                        break;
-                    default:
-                        break;
-                }
-            });
+                        Double timeDifference = (DateTime.Now - timeStart).TotalSeconds;
+                        _SimplifiedTrajectories.Add(t);
+                        SendResultMessageFromThread(j, resultType, t.NumberOfPoints, timeDifference);
+                    }
+                });
+            }
+        }
+
+
+        public String GetStatusStringOfSimplify()
+        {
+            return "Simplify by algorithm " + _AlgorithmName + (_SimplifiedTrajectories.Count == _OriginalTrajectories.Count ? " ENDED" :("... - " + _SimplifiedTrajectories.Count + " / " + _OriginalTrajectories.Count));
         }
 
 
