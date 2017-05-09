@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 
 namespace DPTS.Model
 {
@@ -23,9 +22,9 @@ namespace DPTS.Model
         public ResultType Result_Type { get => _Result_Type; }
         private Int32 _Length;
         public Int32 Length { get => _Length; }
-        private Int64 _TimeInSecs;
-        public Int64 TimeInSecs { get => _TimeInSecs; }
-        public ResultMessageArgs(Int32 id, ResultType resultType, Int32 length, Int64 timeInSecs)
+        private Double _TimeInSecs;
+        public Double TimeInSecs { get => _TimeInSecs; }
+        public ResultMessageArgs(Int32 id, ResultType resultType, Int32 length, Double timeInSecs)
         {
             _ID = id;
             _Result_Type = resultType;

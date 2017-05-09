@@ -8,11 +8,11 @@ namespace DPTS.ViewModel
         public Int32 LengthOriginal { get; private set; }
         public Int32 LengthOptimal { get; private set; }
         public Int32 LengthApproximative { get; private set; }
-        public Int64 Time_SP { get; private set; }
-        public Int64 Time_SP_Prac { get; private set; }
-        public Int64 Time_SP_Theo { get; private set; }
-        public Int64 Time_SP_Both { get; private set; }
-        public Int64 Time_Intersect { get; private set; }
+        public Double Time_SP { get; private set; }
+        public Double Time_SP_Prac { get; private set; }
+        public Double Time_SP_Theo { get; private set; }
+        public Double Time_SP_Both { get; private set; }
+        public Double Time_Intersect { get; private set; }
 
         public Result(Int32 no)
         {
@@ -34,27 +34,27 @@ namespace DPTS.ViewModel
             LengthApproximative = length;
         }
 
-        public void setTime_SP(Int64 time)
+        public void setTime_SP(Double time)
         {
             Time_SP = time;
         }
 
-        public void setTime_SP_Prac(Int64 time)
+        public void setTime_SP_Prac(Double time)
         {
             Time_SP_Prac = time;
         }
 
-        public void setTime_SP_Theo(Int64 time)
+        public void setTime_SP_Theo(Double time)
         {
             Time_SP_Theo = time;
         }
 
-        public void setTime_SP_Both(Int64 time)
+        public void setTime_SP_Both(Double time)
         {
             Time_SP_Both = time;
         }
 
-        public void setTime_Intersect(Int64 time)
+        public void setTime_Intersect(Double time)
         {
             Time_Intersect = time;
         }

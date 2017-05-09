@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace DPTS.Model
 {
@@ -129,13 +130,27 @@ namespace DPTS.Model
                             Trajectory removedSeqsFromTrajectory = RemoveSequences(_OriginalTrajectories[i]);
                             DateTime timeStart = DateTime.Now;
                             Trajectory t = SimplifyBySP(removedSeqsFromTrajectory, errorTolerance);
-                            Int64 timeDifference = DateTime.Now.Subtract(timeStart).Ticks;
+                            Double timeDifference = (DateTime.Now - timeStart).TotalSeconds;
                             _SimplifiedTrajectories.Add(t);
-                            ResultMessage(this, new ResultMessageArgs(i, ResultType.SP, t.NumberOfPoints, timeDifference));
+                            SendResultMessageFromThread(i, ResultType.SP, t.NumberOfPoints, timeDifference);
                         }
                         StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP algoritmussal KÉSZ."));
                         break;
                     case AlgorithmType.SP_Prac:
+                        StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Prac algoritmussal... 0/" + _OriginalTrajectories.Count));
+                        for (Int32 i = 0; i < _OriginalTrajectories.Count; ++i)
+                        {
+                            StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Prac algoritmussal... " + (i + 1) + "/" + _OriginalTrajectories.Count));
+                            // step 0
+                            // egymás utáni azonos pontok sorozatának helyettesítése egyetlen ponttal
+                            Trajectory removedSeqsFromTrajectory = RemoveSequences(_OriginalTrajectories[i]);
+                            DateTime timeStart = DateTime.Now;
+                            Trajectory t = SimplifyBySP_Prac(removedSeqsFromTrajectory, errorTolerance);
+                            Double timeDifference = (DateTime.Now - timeStart).TotalSeconds;
+                            _SimplifiedTrajectories.Add(t);
+                            SendResultMessageFromThread(i, ResultType.SP_Prac, t.NumberOfPoints, timeDifference);
+                        }
+                        StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Prac algoritmussal KÉSZ."));
                         break;
                     case AlgorithmType.SP_Theo:
                         break;
@@ -149,9 +164,9 @@ namespace DPTS.Model
                             Trajectory removedSeqsFromTrajectory = RemoveSequences(_OriginalTrajectories[i]);
                             DateTime timeStart = DateTime.Now;
                             Trajectory t = SimplifyByApproximativeAlg(removedSeqsFromTrajectory, errorTolerance);
-                            Int64 timeDifference = DateTime.Now.Subtract(timeStart).Ticks;
+                            Double timeDifference = (DateTime.Now - timeStart).TotalSeconds;
                             _SimplifiedTrajectories.Add(t);
-                            ResultMessage(this, new ResultMessageArgs(i, ResultType.Intersect, t.NumberOfPoints, timeDifference));
+                            SendResultMessageFromThread(i, ResultType.Intersect, t.NumberOfPoints, timeDifference);
                         }
                         break;
                     default:
@@ -199,7 +214,7 @@ namespace DPTS.Model
         private Boolean[,] ConstructGraph(Trajectory trajectory, Double error_tolerance)
         {
             Int32 numberOfVertexes = trajectory.NumberOfPoints;
-            Boolean[,] graph = new Boolean[numberOfVertexes,numberOfVertexes];
+            Boolean[,] graph = new Boolean[numberOfVertexes, numberOfVertexes];
             // feltöltjük a csúcsmátrixot "hamis" értékekkel
             for (Int32 i = 0; i < graph.GetLength(0); ++i)
             {
@@ -215,18 +230,8 @@ namespace DPTS.Model
                 // négyzetes mátrix
                 for (Int32 j = i + 1; j < graph.GetLength(0); ++j)
                 {
-                    Double directionSimplified = GetDirection(trajectory[i], trajectory[j]);
-
-                    Double directionMaximalDifference = GetDirectionDifference(directionSimplified, GetDirection(trajectory[i], trajectory[i + 1]));
-                    for (Int32 k = i; k < j; ++k)
-                    {
-                        Double directionDifference = GetDirectionDifference(directionSimplified, GetDirection(trajectory[k], trajectory[k + 1]));
-                        if (directionDifference > directionMaximalDifference)
-                        {
-                            directionMaximalDifference = directionDifference;
-                        }
-                    }
-                    graph[i, j] = directionMaximalDifference <= error_tolerance;
+                    Double simplificationErrorOnSegment = GetSimplificationErrorOnSegment(trajectory, i, j);
+                    graph[i, j] = simplificationErrorOnSegment <= error_tolerance;
                 }
             }
 
@@ -236,6 +241,24 @@ namespace DPTS.Model
         private Double GetDirection(Point from, Point to)
         {
             return Math.Atan((to.Latitude - from.Latitude) / (to.Longitude - from.Longitude));
+        }
+
+        // epszilon az egyszerűsített trajektória egy szakaszára összevetve az eredeti trajektória megfelelő darabjaival - maximumkiválasztás
+        private Double GetSimplificationErrorOnSegment(Trajectory trajectory, Int32 i, Int32 j)
+        {
+            Double directionSimplified = GetDirection(trajectory[i], trajectory[j]);
+
+            Double directionMaximalDifference = GetDirectionDifference(directionSimplified, GetDirection(trajectory[i], trajectory[i + 1]));
+            for (Int32 k = i; k < j; ++k)
+            {
+                Double directionDifference = GetDirectionDifference(directionSimplified, GetDirection(trajectory[k], trajectory[k + 1]));
+                if (directionDifference > directionMaximalDifference)
+                {
+                    directionMaximalDifference = directionDifference;
+                }
+            }
+
+            return directionMaximalDifference;
         }
 
         private Double GetDirectionDifference(Double direction1, Double direction2)
@@ -301,10 +324,110 @@ namespace DPTS.Model
             return shortestPathIndexes;
         }
 
-        private Trajectory SimplifyByApproximativeAlg(Trajectory trajectory, Double error_tolerance)
+        private Trajectory SimplifyBySP_Prac(Trajectory trajectory, Double error_tolerance)
+        {
+            Int32[] prev = new Int32[trajectory.NumberOfPoints];
+
+            List<HashSet<IndexedPoints>> H_Sets = new List<HashSet<IndexedPoints>>();
+
+            HashSet<IndexedPoints> H0_Set = new HashSet<IndexedPoints> { new IndexedPoints(0, trajectory[0]) };
+            H_Sets.Add(H0_Set);
+
+            List<IndexedPoints> U_Set = new List<IndexedPoints>();
+            for (Int32 i = 1; i < trajectory.NumberOfPoints; ++i)
+            {
+                U_Set.Add(new IndexedPoints(i, trajectory[i]));
+            }
+
+            //Int32 k = 1;
+
+            Boolean ready = false;
+            while (!ready)
+            {
+                HashSet<IndexedPoints> Hk_Set = new HashSet<IndexedPoints>();
+                // process positions in H(k-1)_Set and U in a reversed order
+                for (Int32 i = U_Set.Count - 1; !ready && i >= 0; --i)
+                {
+                    IndexedPoints pj = U_Set[i];
+                    foreach (IndexedPoints pi in H_Sets[H_Sets.Count - 1])
+                    {
+                        if (pi.Index >= pj.Index)
+                        {
+                            continue;
+                        }
+                        Double simplificationErrorOnSegment = GetSimplificationErrorOnSegment(trajectory, pi.Index, pj.Index);
+                        if (simplificationErrorOnSegment <= error_tolerance)
+                        {
+                            // vezet el pi-ből pj-be
+                            prev[pj.Index] = pi.Index;
+                            if (pj.Index == trajectory.NumberOfPoints - 1)
+                            {
+                                // eljutottunk az utolsó pontba
+                                ready = true;
+                                break;
+                            }
+                            U_Set.Remove(pj);
+                            Hk_Set.Add(pj);
+                        }
+                    }
+                }
+                H_Sets.Add(Hk_Set);
+                //++k;
+            }
+
+            // solution generation
+            List<Int32> shortestPathIndexes = new List<Int32>();
+            Int32 current = trajectory.NumberOfPoints - 1; // az utolsó csúcs mindenképpen eleme az egyszerűsített trajektóriának, ide kell eljutni
+            shortestPathIndexes.Insert(0, current);
+            while (current != 0)
+            {
+                // még nem értünk el a kiinduló pontba
+                current = prev[current];
+                shortestPathIndexes.Insert(0, current);
+            }
+
+            Trajectory simplifiedTrajectory = new Trajectory();
+            for (Int32 i = 0; i < shortestPathIndexes.Count; ++i)
+            {
+                simplifiedTrajectory.Add(trajectory[shortestPathIndexes[i]]);
+            }
+            return simplifiedTrajectory;
+        }
+
+        private Trajectory SimplifyBySP_Theo(Trajectory trajectory, Double error_tolerance)
+        {
+            Int32[] prev = new Int32[trajectory.NumberOfPoints];
+
+            // feasible direction range-ek számítása
+            Int32 numberOfVertexes = trajectory.NumberOfPoints;
+            DirectionRange[,] graph = new DirectionRange[numberOfVertexes, numberOfVertexes];
+            // (r == 1) eset
+            for (Int32 h = 0; h < numberOfVertexes - 1; ++h)
+            {
+                Double direction = GetDirection(trajectory[h], trajectory[h + 1]);
+                graph[h, h + 1] = new DirectionRange(direction, error_tolerance);
+            }
+            // (r > 1) esetek
+            for (Int32 r = 2; r < numberOfVertexes; ++r)
+            {
+                for (Int32 h = 0; h < numberOfVertexes - r; ++h)
+                {
+                    graph[h, h + r] = DirectionRange.Intersect(graph[h, h + r - 1], graph[h + r - 1, h + r]);
+                }
+            }
+            Trajectory simplifiedTrajectory = new Trajectory();
+            return simplifiedTrajectory;
+        }
+
+            private Trajectory SimplifyByApproximativeAlg(Trajectory trajectory, Double error_tolerance)
         {
             // közelítő algoritmus implementálása
             return new Trajectory();
+        }
+
+        private void SendResultMessageFromThread(Int32 id, ResultType resultType, Int32 length, Double timeInSecs)
+        {
+            Application.Current.Dispatcher.Invoke(new Action(() => { ResultMessage(this, new ResultMessageArgs(id, resultType, length, timeInSecs)); }));
         }
     }
 }

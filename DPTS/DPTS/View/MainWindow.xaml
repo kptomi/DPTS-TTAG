@@ -31,7 +31,7 @@
         <ComboBox  Grid.Column="0" Grid.Row="2" HorizontalContentAlignment="Center" ItemsSource="{Binding ObservableAlgorithms, Mode=OneTime}" Margin="5" SelectedIndex="{Binding SelectedAlgorithmIndex, Mode=OneWayToSource}" VerticalAlignment="Center" />
         <Button Command="{Binding SimplifyTrajectoriesCommand}" Content="Simplify trajectories" FontWeight="SemiBold" Grid.Column="1" Grid.ColumnSpan="3" Grid.Row="2" HorizontalAlignment="Left" IsEnabled="{Binding DataAlreadyReaded, Mode=OneWay}" Margin="5" Width="120" />
         <Label Content="Results:" Grid.Column="0" Grid.Row="3" Margin="5" />
-        <DataGrid AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeRows="False" Grid.Column="0" Grid.ColumnSpan="5" Grid.Row="4" IsReadOnly="True" ItemsSource="{Binding Results}" Name="ResultsDataGrid">
+        <DataGrid AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeRows="False" Grid.Column="0" Grid.ColumnSpan="5" Grid.Row="4" IsReadOnly="True" ItemsSource="{Binding Results, Mode=OneWay, NotifyOnSourceUpdated=True, UpdateSourceTrigger=PropertyChanged}" Name="ResultsDataGrid">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="No" Width="30" Binding="{Binding No}" />
                 <DataGridTextColumn Header="OrigLength" Width="70" Binding="{Binding LengthOriginal}" />

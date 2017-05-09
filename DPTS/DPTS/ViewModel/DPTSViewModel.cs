@@ -47,7 +47,7 @@ namespace DPTS.ViewModel
 
         private readonly String[] _ObservableSizes = { "All", "5", "10", "20", "50", "100", "200", "500" };
         public String[] ObservableSizes { get => _ObservableSizes; }
-        private readonly String[] _ObservableAlgorithms = { "SP" };
+        private readonly String[] _ObservableAlgorithms = { "SP", "SP-Prac" };
         public String[] ObservableAlgorithms { get => _ObservableAlgorithms; }
         public ObservableCollection<Result> Results { get; private set; }
 
@@ -136,9 +136,7 @@ namespace DPTS.ViewModel
             if (r == null)
             {
                 r = new Result(e.ID);
-            } else
-            {
-                Results.Remove(r);
+                Results.Add(r);
             }
             switch (e.Result_Type)
             {
@@ -168,7 +166,7 @@ namespace DPTS.ViewModel
                 default:
                     break;
             }
-            Results.Add(r);
+            Results = new ObservableCollection<Result>(Results);
             OnPropertyChanged("Results");
         }
 
