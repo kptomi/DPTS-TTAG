@@ -18,7 +18,7 @@ namespace DPTS.Model
 
         public Point this[Int32 index] { get => _Points[index]; }
 
-        public Int16 NumberOfPoints { get => (Int16)_Points.Count; }
+        public Int32 NumberOfPoints { get => _Points.Count; }
 
         public void Add(Point item)
         {

@@ -64,6 +64,7 @@
     </Compile>
     <Compile Include="Model\DirectionRange.cs" />
     <Compile Include="Model\DPTSModel.cs" />
+    <Compile Include="Model\FeasibleDirectionRange.cs" />
     <Compile Include="Model\MyEventArgs.cs" />
     <Compile Include="Model\Point.cs" />
     <Compile Include="Model\Trajectory.cs" />

@@ -154,7 +154,7 @@ namespace DPTS.Model
                         break;
                     case AlgorithmType.SP_Theo:
                         StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Theo algoritmussal... 0/" + _OriginalTrajectories.Count));
-                        for (Int32 i = 47; i < 48; ++i)
+                        for (Int32 i = 0; i < _OriginalTrajectories.Count; ++i)
                         {
                             StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP-Theo algoritmussal... " + (i + 1) + "/" + _OriginalTrajectories.Count));
                             // step 0
@@ -218,7 +218,7 @@ namespace DPTS.Model
         private Trajectory SimplifyBySP(Trajectory trajectory, Double error_tolerance)
         {
             // step 1 - graph construction
-            Boolean[,] graph = ConstructGraph(trajectory, error_tolerance);
+            List<Int32>[] graph = ConstructGraph(trajectory, error_tolerance);
             // step 2 - shortest path finding
             List<Int32> shortestPathIndexes = GetShortestPath(graph);
             // step 3 solution generation
@@ -239,6 +239,7 @@ namespace DPTS.Model
             // élek meghatározása
             for (Int32 i = 0; i < graph.Length; ++i)
             {
+                graph[i] = new List<Int32>();
                 // csak az adott csúcsnál nagyobb indexű csúcsba vezethet él
                 for (Int32 j = i + 1; j < numberOfVertexes; ++j)
                 {
@@ -256,12 +257,12 @@ namespace DPTS.Model
         // epszilon az egyszerűsített trajektória egy szakaszára összevetve az eredeti trajektória megfelelő darabjaival - maximumkiválasztás
         private Double GetSimplificationErrorOnSegment(Trajectory trajectory, Int32 i, Int32 j)
         {
-            Double directionSimplified = GetDirection(trajectory[i], trajectory[j]);
+            Double directionSimplified = Point.GetDirection(trajectory[i], trajectory[j]);
 
-            Double directionMaximalDifference = GetDirectionDifference(directionSimplified, GetDirection(trajectory[i], trajectory[i + 1]));
+            Double directionMaximalDifference = GetDirectionDifference(directionSimplified, Point.GetDirection(trajectory[i], trajectory[i + 1]));
             for (Int32 k = i; k < j; ++k)
             {
-                Double directionDifference = GetDirectionDifference(directionSimplified, GetDirection(trajectory[k], trajectory[k + 1]));
+                Double directionDifference = GetDirectionDifference(directionSimplified, Point.GetDirection(trajectory[k], trajectory[k + 1]));
                 if (directionDifference > directionMaximalDifference)
                 {
                     directionMaximalDifference = directionDifference;
@@ -271,17 +272,6 @@ namespace DPTS.Model
             return directionMaximalDifference;
         }
 
-        private Double GetDirection(Point from, Point to)
-        {
-            Double direction = Math.Atan((to.Latitude - from.Latitude) / (to.Longitude - from.Longitude));
-            // korrekció
-            if (direction < 0)
-            {
-                direction += Math.PI * 2;
-            }
-            return direction;
-        }
-
         private Double GetDirectionDifference(Double direction1, Double direction2)
         {
             Double absDifference = Math.Abs(direction1 - direction2);
@@ -289,15 +279,13 @@ namespace DPTS.Model
         }
 
         // Dijkstra-algoritmus
-        private List<Int32> GetShortestPath(Boolean[,] graph)
+        private List<Int32> GetShortestPath(List<Int32>[] graph)
         {
-            Int32 numberVertexes = graph.GetLength(0);
-
             Int32 source = 0;
             HashSet<Int32> q = new HashSet<Int32>();
-            Int32[] dist = new Int32[numberVertexes];
-            Int32[] prev = new Int32[numberVertexes];
-            for (Int32 i = 0; i < numberVertexes; ++i)
+            Int32[] dist = new Int32[graph.Length];
+            Int32[] prev = new Int32[graph.Length];
+            for (Int32 i = 0; i < graph.Length; ++i)
             {
                 dist[i] = Int32.MaxValue;
                 prev[i] = -1;
@@ -319,9 +307,9 @@ namespace DPTS.Model
                 }
                 q.Remove(u);
                 // "u" csúcs szomszédainak frissítjük a távolságát, ha jobbat találtunk
-                foreach (Int32 v in q)
+                foreach (Int32 v in graph[u]) // van él "u" csúcsból az "v" csúcsba
                 {
-                    if (graph[u, v]) // van él "u" csúcsból az "v" csúcsba
+                    if (q.Contains(v))
                     {
                         Int32 alt = dist[u] + 1; // az élsúly minden esetben 1
                         if (alt < dist[v])
@@ -334,7 +322,7 @@ namespace DPTS.Model
             }
 
             List<Int32> shortestPathIndexes = new List<Int32>();
-            Int32 current = numberVertexes - 1; // az utolsó csúcs mindenképpen eleme az egyszerűsített trajektóriának, ide kell eljutni
+            Int32 current = graph.Length - 1; // az utolsó csúcs mindenképpen eleme az egyszerűsített trajektóriának, ide kell eljutni
             shortestPathIndexes.Insert(0, current);
             while (current != source)
             {
@@ -418,7 +406,7 @@ namespace DPTS.Model
         private Trajectory SimplifyBySP_Theo(Trajectory trajectory, Double error_tolerance)
         {
             // step 1 - graph construction
-            Boolean[,] graph = ConstructGraphWithFDR(trajectory, error_tolerance);
+            List<Int32>[] graph = ConstructGraphWithFDR(trajectory, error_tolerance);
             // step 2 - shortest path finding
             List<Int32> shortestPathIndexes = GetShortestPath(graph);
             // step 3 solution generation
@@ -430,28 +418,25 @@ namespace DPTS.Model
             return simplifiedTrajectory;
         }
 
-        private Boolean[,] ConstructGraphWithFDR(Trajectory trajectory, Double error_tolerance)
+        private List<Int32>[] ConstructGraphWithFDR(Trajectory trajectory, Double error_tolerance)
         {
             Int32 numberOfVertexes = trajectory.NumberOfPoints;
-            Boolean[,] graph = new Boolean[numberOfVertexes, numberOfVertexes];
-            // feltöltjük a csúcsmátrixot "hamis" értékekkel
-            for (Int32 i = 0; i < graph.GetLength(0); ++i)
-            {
-                for (Int32 j = 0; j < graph.GetLength(1); ++j)
-                {
-                    graph[i, j] = false;
-                }
-            }
 
-            DirectionRange[,] FDR_matrix = GetFDRsForTrajectory(trajectory, error_tolerance);
+            List<Int32>[] graph = new List<Int32>[trajectory.NumberOfPoints]; // éllistás ábrázoláshoz
+
+            FeasibleDirectionRange FDR = new FeasibleDirectionRange(trajectory, error_tolerance);
 
             // élek meghatározása
-            for (Int32 i = 0; i < graph.GetLength(0); ++i)
+            for (Int32 i = 0; i < graph.Length; ++i)
             {
-                // négyzetes mátrix
-                for (Int32 j = i + 1; j < graph.GetLength(0); ++j)
+                graph[i] = new List<Int32>();
+                // csak az adott csúcsnál nagyobb indexű csúcsba vezethet él
+                for (Int32 j = i + 1; j < numberOfVertexes; ++j)
                 {
-                    graph[i, j] = FDR_matrix[i,j].IsDirectionInRange(GetDirection(trajectory[i], trajectory[j]));
+                    if (FDR.IsDirectionInRange(trajectory, i, j))
+                    {
+                        graph[i].Add(j);
+                    }
                 }
             }
 
@@ -463,12 +448,7 @@ namespace DPTS.Model
             // feasible direction range-ek számítása
             Int32 numberOfVertexes = trajectory.NumberOfPoints;
             DirectionRange[,] FDR_matrix = new DirectionRange[numberOfVertexes, numberOfVertexes];
-            // (r == 1) eset
-            for (Int32 h = 0; h < numberOfVertexes - 1; ++h)
-            {
-                Double direction = GetDirection(trajectory[h], trajectory[h + 1]);
-                FDR_matrix[h, h + 1] = new DirectionRange(direction, error_tolerance);
-            }
+            
             // (r > 1) esetek
             for (Int32 r = 2; r < numberOfVertexes; ++r)
             {
@@ -496,7 +476,7 @@ namespace DPTS.Model
             Int32 h = 1;
             while (h < trajectory.NumberOfPoints)
             {
-                while (h < trajectory.NumberOfPoints && isSegmentFeasible(trajectory, e, h, error_tolerance / 2, FDR_matrix))
+                while (h < trajectory.NumberOfPoints && IsSegmentFeasible(trajectory, e, h, error_tolerance / 2, FDR_matrix))
                 {
                     ++h;
                 }
@@ -506,7 +486,7 @@ namespace DPTS.Model
             return simplifiedTrajectory;
         }
 
-        private Boolean isSegmentFeasible(Trajectory t, Int32 indexFrom, Int32 IndexTo, Double error_tolerance, DirectionRange[,] FDR_matrix)
+        private Boolean IsSegmentFeasible(Trajectory t, Int32 indexFrom, Int32 IndexTo, Double error_tolerance, DirectionRange[,] FDR_matrix)
         {
             if (FDR_matrix[indexFrom, IndexTo] == null)
             {
@@ -518,12 +498,12 @@ namespace DPTS.Model
                 }
                 else if (indexFrom + 1 == IndexTo)
                 {
-                    FDR_matrix[indexFrom, IndexTo] = new DirectionRange(GetDirection(t[indexFrom], t[IndexTo]), error_tolerance);
+                    FDR_matrix[indexFrom, IndexTo] = new DirectionRange(Point.GetDirection(t[indexFrom], t[IndexTo]), error_tolerance);
                     return true;
                 }
                 else
                 {
-                    FDR_matrix[IndexTo - 1, IndexTo] = new DirectionRange(GetDirection(t[IndexTo - 1], t[IndexTo]), error_tolerance);
+                    FDR_matrix[IndexTo - 1, IndexTo] = new DirectionRange(Point.GetDirection(t[IndexTo - 1], t[IndexTo]), error_tolerance);
                     FDR_matrix[indexFrom, IndexTo] = DirectionRange.Intersect(FDR_matrix[indexFrom, IndexTo - 1], FDR_matrix[IndexTo - 1, IndexTo]);
                     return FDR_matrix[indexFrom, IndexTo].NumberOFRanges() != 0;
                 }
