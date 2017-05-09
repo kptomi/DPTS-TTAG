@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Direction-Preserving Trajectory Simplification" Height="420" Width="700">
+        Title="Direction-Preserving Trajectory Simplification" Height="420" Width="800">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="20" />
@@ -22,13 +22,17 @@
         </Grid.ColumnDefinitions>
         <Menu Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="0">
             <MenuItem Header="File">
-                <MenuItem Command="{Binding ExportResultsToKMLCommand}" Header="Export results to KML" IsEnabled="{Binding IsSimplifyEnabled, Mode=OneWay}" />
+                <MenuItem Command="{Binding OpenFileAsDataSourceCommand}" Header="Open file as data source..." IsEnabled="{Binding IsInputEnabled}" />
+                <MenuItem Command="{Binding OpenDirectoryAsDataSourceCommand}" Header="Open directory as data source..." IsEnabled="{Binding IsInputEnabled}" />
+                <Separator />
+                <MenuItem Command="{Binding ExportResultsToKMLCommand}" Header="Export results to KML..." IsEnabled="{Binding IsSimplifyEnabled, Mode=OneWay}" />
+                <Separator />
                 <MenuItem Command="{Binding ExitCommand}" Header="Exit" />
             </MenuItem>
         </Menu>
         <Label Content="Data source:" Grid.Column="0" Grid.Row="1" Margin="5" VerticalAlignment="Center" />
         <TextBox Grid.Column="1" Grid.Row="1" Height="24" IsReadOnly="True" Margin="5" Text="{Binding Path}" VerticalAlignment="Center" VerticalContentAlignment="Center" />
-        <Button Command="{Binding BrowseDataFolderCommand}" Content="Browse..." Grid.Column="2" Grid.Row="1" Height="24" IsEnabled="{Binding IsInputEnabled}" Margin="5" VerticalAlignment="Center" Width="65" />
+        
         <StackPanel Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="2" Orientation="Horizontal">
             <Label Content="Limit:" Margin="5" VerticalAlignment="Center" />
             <ComboBox HorizontalContentAlignment="Right" IsEnabled="{Binding IsInputEnabled}" ItemsSource="{Binding ObservableSizes, Mode=OneTime}" Margin="0,5,5,5" SelectedIndex="{Binding SelectedSizeIndex, Mode=OneWayToSource}" VerticalAlignment="Center" Width="60" />
@@ -45,15 +49,15 @@
         <Label Content="Results:" Grid.Column="0" Grid.Row="4" Margin="5" VerticalAlignment="Center" />
         <DataGrid AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeRows="False" Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="5" IsReadOnly="True" ItemsSource="{Binding Results, Mode=OneWay, NotifyOnSourceUpdated=True, UpdateSourceTrigger=PropertyChanged}" Name="ResultsDataGrid">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="No" Width="30" Binding="{Binding No}" />
-                <DataGridTextColumn Header="OrigLength" Width="70" Binding="{Binding LengthOriginal}" />
+                <DataGridTextColumn Header="No"  Width="60" Binding="{Binding No}" />
+                <DataGridTextColumn Header="OrigLength" Width="90" Binding="{Binding LengthOriginal}" />
                 <DataGridTextColumn Header="SimpLengthOpt" Width="90" Binding="{Binding LengthOptimal}" />
                 <DataGridTextColumn Header="SimpLengthApprox" Width="115" Binding="{Binding LengthApproximative}" />
-                <DataGridTextColumn Header="SP" Width="60" Binding="{Binding Time_SP}" />
-                <DataGridTextColumn Header="SP-Prac" Width="60" Binding="{Binding Time_SP_Prac}" />
-                <DataGridTextColumn Header="SP-Theo" Width="60" Binding="{Binding Time_SP_Theo}" />
-                <DataGridTextColumn Header="SP-Both" Width="60" Binding="{Binding Time_SP_Both}" />
-                <DataGridTextColumn Header="Intersect" Width="60" Binding="{Binding Time_Intersect}" />
+                <DataGridTextColumn Header="SP" Width="70" Binding="{Binding Time_SP}" />
+                <DataGridTextColumn Header="SP-Prac" Width="70" Binding="{Binding Time_SP_Prac}" />
+                <DataGridTextColumn Header="SP-Theo" Width="70" Binding="{Binding Time_SP_Theo}" />
+                <DataGridTextColumn Header="SP-Both" Width="70" Binding="{Binding Time_SP_Both}" />
+                <DataGridTextColumn Header="Intersect" Width="70" Binding="{Binding Time_Intersect}" />
             </DataGrid.Columns>
         </DataGrid>
         <StatusBar Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="6">

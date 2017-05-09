@@ -16,13 +16,14 @@ namespace DPTS.ViewModel
         private const string _pathExample = "C:\\Users\\User\\Documents\\Terinformatika\\4-Geolife\\Geolife Trajectories 1.3\\Data";
 
         // Privát adattagok
+
         private DPTSModel _Model;
         private Double _ErrorTolerance;
         private Boolean _DataAlreadyRead;
         private Boolean _SimplifyInProgress;
 
 
-        // Publikus Properties (tulajdonságok) - ha csak a felületről szeretnénk módosítani, elég az automatikus getter/setter művelet
+        // Publikus property-k (tulajdonságok) - ha csak a felületről szeretnénk módosítani, elég az automatikus getter/setter művelet
 
         private String _Path;
         public String Path { get => _Path; set { _Path = value; OnPropertyChanged("Path"); } }
@@ -39,12 +40,10 @@ namespace DPTS.ViewModel
         public String StatusMessage { get => _StatusMessage; private set { _StatusMessage = value; OnPropertyChanged("StatusMessage"); } }
 
 
-        // Események (a viewmodel-nek)
+        // Delegate commands
 
-
-        // Delegate Commands
-
-        public DelegateCommand BrowseDataFolderCommand { get; private set; }
+        public DelegateCommand OpenFileAsDataSourceCommand { get; private set; }
+        public DelegateCommand OpenDirectoryAsDataSourceCommand { get; private set; }
         public DelegateCommand ExitCommand { get; private set; }
         public DelegateCommand ExportResultsToKMLCommand { get; private set; }
         public DelegateCommand ReadAndLoadCommand { get; private set; }
@@ -77,21 +76,61 @@ namespace DPTS.ViewModel
 
             _DataAlreadyRead = false;
             _SimplifyInProgress = false;
-            Path = _pathExample;
+       //     Path = _pathExample;
             Results = new ObservableCollection<Result>();
 
-            BrowseDataFolderCommand = new DelegateCommand(x => BrowseDataFolder());
+            OpenFileAsDataSourceCommand = new DelegateCommand(x => OpenFileAsDataSource());
+            OpenDirectoryAsDataSourceCommand = new DelegateCommand(x => OpenDirectoryAsDataSource());
             ExitCommand = new DelegateCommand(x => System.Windows.Application.Current.Shutdown());
             ExportResultsToKMLCommand = new DelegateCommand(x => ExportResultsToKML());
             ReadAndLoadCommand = new DelegateCommand(x => ReadAndLoad());
             SimplifyTrajectoriesCommand = new DelegateCommand(x => SimplifyTrajectories());
         }
 
-        
-        private void BrowseDataFolder()
+
+        private void OpenFileAsDataSource()
         {
-            // TODO : kiválasztani a root adat-foldert
-            _DataAlreadyRead = false;
+            StatusMessage = "Open a file as a data source...";
+            OpenFileDialog dial = new OpenFileDialog();
+            if (dial.ShowDialog() == DialogResult.OK)
+            {
+                Path = dial.FileName;
+
+                SetDataAlreadyRead(false);
+
+                // törli az eredmények teljes tartalmát
+                Results = new ObservableCollection<Result>();
+                OnPropertyChanged("Results");
+
+                StatusMessage = "File has been opened as a data source";
+            }
+            else
+            {
+                StatusMessage = "Open a file has been cancelled";
+            }
+        }
+
+
+        private void OpenDirectoryAsDataSource()
+        {
+            StatusMessage = "Open a directory as a data source...";
+            FolderBrowserDialog dial = new FolderBrowserDialog();
+            if (dial.ShowDialog() == DialogResult.OK)
+            {
+                Path = dial.SelectedPath;
+
+                SetDataAlreadyRead(false);
+
+                // törli az eredmények teljes tartalmát
+                Results = new ObservableCollection<Result>();
+                OnPropertyChanged("Results");
+
+                StatusMessage = "Directory has been opened as a data source";
+            }
+            else
+            {
+                StatusMessage = "Open a directory has been cancelled";
+            }
         }
 
 
@@ -106,8 +145,7 @@ namespace DPTS.ViewModel
 
             _Model.OpenAndLoadFromFile(DataType.PLT, Path, limit);
 
-            _DataAlreadyRead = true;
-            OnPropertyChanged("");
+            SetDataAlreadyRead(true);
         }
 
 
@@ -184,7 +222,7 @@ namespace DPTS.ViewModel
 
         private void OnErrorMessage(object sender, StringMessageArgs e)
         {
-            System.Windows.MessageBox.Show("Hiba:" + Environment.NewLine + e.Message, "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+            System.Windows.MessageBox.Show("Error:" + Environment.NewLine + e.Message, "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
         }
 
 

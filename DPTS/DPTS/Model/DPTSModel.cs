@@ -58,7 +58,7 @@ namespace DPTS.Model
 
             Task task = Task.Run(() =>
             {
-                SendStatusMessageFromThread("Load trajectory data from data source... 1/" + limit);
+                SendStatusMessageFromThread("Load trajectory data from data source... - 0" + (limit == Int32.MaxValue ? "" : "/" + limit));
                 if (File.Exists(path))
                 {
                     ProcessFile(dataType, path);
@@ -81,7 +81,7 @@ namespace DPTS.Model
                 if (ProcessFile(dataType, fileEntries[i]))
                 {
                     ++numberProcessedFiles;
-                    SendStatusMessageFromThread("Load trajectory data from data source... - " + numberProcessedFiles  + " / " + limit);
+                    SendStatusMessageFromThread("Load trajectory data from data source... - " + numberProcessedFiles + (limit == Int32.MaxValue ? "" : " / " + limit));
                 }
             }
 
