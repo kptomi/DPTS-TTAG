@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows;
 
 using DPTS.Model;
@@ -22,9 +24,9 @@ namespace DPTS.ViewModel
         public String PathToDataRoot { get => _PathToDataRoot; set { _PathToDataRoot = value; OnPropertyChanged("PathToDataRoot"); } }
         private Int32 _SelectedSizeIndex;
         public Int32 SelectedSizeIndex { get => _SelectedSizeIndex; set { _SelectedSizeIndex = value; OnPropertyChanged("IsOpenEnabled"); } }
-        public Boolean IsOpenEnabled => SelectedSizeIndex != -1;
-        public String OriginalTrajectoryLengths { get; private set; }
-        public String SimplifiedOptimalTrajectoryLengths { get; private set; }
+        private Int32 _SelectedAlgorithmIndex;
+        public Int32 SelectedAlgorithmIndex { get => _SelectedAlgorithmIndex; set => _SelectedAlgorithmIndex = value; }
+        public Boolean IsOpenEnabled { get => SelectedSizeIndex != -1; }
         public Boolean DataAlreadyReaded { get; private set; }
         private String _StatusMessage;
         public String StatusMessage { get => _StatusMessage; private set { _StatusMessage = value; OnPropertyChanged("StatusMessage"); }
@@ -38,13 +40,16 @@ namespace DPTS.ViewModel
 
         public DelegateCommand BrowseDataFolderCommand { get; private set; }
         public DelegateCommand ReadAndLoadCommand { get; private set; }
-        public DelegateCommand SimplifyBySPCommand { get; private set; }
+        public DelegateCommand SimplifyTrajectoriesCommand { get; private set; }
 
 
         // Gyűjtemény típusú properties (View számára)
 
-        private Int32[] _ObservableSizes = { 5, 10, 20, 40, 80 };
-        public Int32[] ObservableSizes { get => _ObservableSizes; }
+        private readonly String[] _ObservableSizes = { "All", "5", "10", "20", "50", "100", "200", "500" };
+        public String[] ObservableSizes { get => _ObservableSizes; }
+        private readonly String[] _ObservableAlgorithms = { "SP" };
+        public String[] ObservableAlgorithms { get => _ObservableAlgorithms; }
+        public ObservableCollection<Result> Results { get; private set; }
 
 
         // Metódusok
@@ -56,17 +61,17 @@ namespace DPTS.ViewModel
             // a modell eseményeinek kezelése
 
             _Model.ErrorMessage += new EventHandler<StringMessageArgs>(OnErrorMessage);
-            _Model.TrajectoryLengthMessage += new EventHandler<TrajectoryLengthArgs>(OnTrajectoryLengths);
-            _Model.ErrorToleranceMessage += new EventHandler<ErrorToleranceArgs>(OnErrorTolerance);
+            _Model.ResultMessage += new EventHandler<ResultMessageArgs>(OnResultMessage);
             _Model.StatusMessage += new EventHandler<StringMessageArgs>(OnStatusMessage);
 
             // inicializálások, kezdőállapot előállítása
 
             PathToDataRoot = _pathToDataRoot;
+            Results = new ObservableCollection<Result>();
 
             BrowseDataFolderCommand = new DelegateCommand(param => BrowseDataFolder());
             ReadAndLoadCommand = new DelegateCommand(param => ReadAndLoad());
-            SimplifyBySPCommand = new DelegateCommand(param => SimplifyBySP());
+            SimplifyTrajectoriesCommand = new DelegateCommand(param => SimplifyTrajectories());
         }
 
         private void BrowseDataFolder()
@@ -79,66 +84,92 @@ namespace DPTS.ViewModel
         private void ReadAndLoad()
         {
             StatusMessage = "Adatok beolvasása a forrásból...";
-            OriginalTrajectoryLengths = ""; OnPropertyChanged("OriginalTrajectoryLengths");
-            SimplifiedOptimalTrajectoryLengths = ""; OnPropertyChanged("SimplifiedOptimalTrajectoryLengths");
-            _Model.OpenAndLoadFromFile(DataType.PLT, PathToDataRoot, ObservableSizes[SelectedSizeIndex]);
+            Int32 limit = (ObservableSizes[SelectedSizeIndex] == "All") ? Int32.MaxValue  : Int32.Parse(ObservableSizes[SelectedSizeIndex]);
+            _Model.OpenAndLoadFromFile(DataType.PLT, PathToDataRoot, limit);
             StatusMessage = "Adatok beolvasása KÉSZ.";
             DataAlreadyReaded = true;
             OnPropertyChanged("DataAlreadyReaded");
         }
 
-        private void SimplifyBySP()
+        private void SimplifyTrajectories()
         {
-            _Model.SimplifyTrajectories(AlgorithmType.SP);
-        }
-
-        private void OnErrorMessage(object sender, StringMessageArgs e)
-        {
-            MessageBox.Show("Hiba:" + Environment.NewLine + e.Message,
-                "DPTS", MessageBoxButton.OK);
-        }
-
-        private void OnTrajectoryLengths(object sender, TrajectoryLengthArgs e)
-        {
-            switch (e.TRType)
+            if (SelectedAlgorithmIndex == -1)
             {
-                case TrajectoryType.Original:
-                    if (String.IsNullOrEmpty(OriginalTrajectoryLengths))
-                    {
-                        OriginalTrajectoryLengths = e.Length.ToString();
-                    }
-                    else
-                    {
-                        OriginalTrajectoryLengths += ", " + e.Length;
-                    }
-                    OnPropertyChanged("OriginalTrajectoryLengths");
+                MessageBox.Show("Algoritmus megadása kötelező!", "DPTS", MessageBoxButton.OK);
+            }
+
+            switch (SelectedAlgorithmIndex)
+            {
+                case 0:
+                    // SP
+                    _Model.SimplifyTrajectories(AlgorithmType.SP);
                     break;
-                case TrajectoryType.SimplifiedOptimal:
-                    if (String.IsNullOrEmpty(SimplifiedOptimalTrajectoryLengths))
-                    {
-                        SimplifiedOptimalTrajectoryLengths = e.Length.ToString();
-                    }
-                    else if (SimplifiedOptimalTrajectoryLengths.EndsWith(Environment.NewLine))
-                    {
-                        SimplifiedOptimalTrajectoryLengths += e.Length;
-                    }
-                    else
-                    {
-                        SimplifiedOptimalTrajectoryLengths += ", " + e.Length;
-                    }
-                    OnPropertyChanged("SimplifiedOptimalTrajectoryLengths");
+                case 1:
+                    // SP-Prac
+                    _Model.SimplifyTrajectories(AlgorithmType.SP_Prac);
                     break;
-                case TrajectoryType.SimplifiedApproximative:
+                case 2:
+                    // SP-Theo
+                    _Model.SimplifyTrajectories(AlgorithmType.SP_Theo);
+                    break;
+                case 3:
+                    // SP-Both
+                    _Model.SimplifyTrajectories(AlgorithmType.SP_Both);
+                    break;
+                case 4:
+                    // Intersect
+                    _Model.SimplifyTrajectories(AlgorithmType.Intersect);
                     break;
                 default:
                     break;
             }
         }
 
-        private void OnErrorTolerance(object sender, ErrorToleranceArgs e)
+        private void OnErrorMessage(object sender, StringMessageArgs e)
         {
-            SimplifiedOptimalTrajectoryLengths += " (" + e.ErrorTolerance + ")" + Environment.NewLine;
-            OnPropertyChanged("OriginalTrajectoryLengths");
+            MessageBox.Show("Hiba:" + Environment.NewLine + e.Message, "DPTS", MessageBoxButton.OK);
+        }
+
+        private void OnResultMessage(object sender, ResultMessageArgs e)
+        {
+            Result r = Results.FirstOrDefault(x => x.No == e.ID);
+            if (r == null)
+            {
+                r = new Result(e.ID);
+            } else
+            {
+                Results.Remove(r);
+            }
+            switch (e.Result_Type)
+            {
+                case ResultType.Original:
+                    r.setLengthOriginal(e.Length);
+                    break;
+                case ResultType.SP:
+                    r.setLengthOptimal(e.Length);
+                    r.setTime_SP(e.TimeInSecs);
+                    break;
+                case ResultType.SP_Prac:
+                    r.setLengthOptimal(e.Length);
+                    r.setTime_SP_Prac(e.TimeInSecs);
+                    break;
+                case ResultType.SP_Theo:
+                    r.setLengthOptimal(e.Length);
+                    r.setTime_SP_Theo(e.TimeInSecs);
+                    break;
+                case ResultType.SP_Both:
+                    r.setLengthOptimal(e.Length);
+                    r.setTime_SP_Both(e.TimeInSecs);
+                    break;
+                case ResultType.Intersect:
+                    r.setLengthApproximative(e.Length);
+                    r.setTime_Intersect(e.TimeInSecs);
+                    break;
+                default:
+                    break;
+            }
+            Results.Add(r);
+            OnPropertyChanged("Results");
         }
 
         private void OnStatusMessage(object sender, StringMessageArgs e)

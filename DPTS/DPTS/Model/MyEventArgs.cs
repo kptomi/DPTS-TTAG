@@ -13,28 +13,24 @@ namespace DPTS.Model
         }
     }
 
-    public enum TrajectoryType { Original, SimplifiedOptimal, SimplifiedApproximative };
+    public enum ResultType { Original, SP, SP_Prac, SP_Theo, SP_Both, Intersect };
 
-    public class TrajectoryLengthArgs : EventArgs
+    public class ResultMessageArgs : EventArgs
     {
+        private Int32 _ID;
+        public Int32 ID { get => _ID; }
+        private ResultType _Result_Type;
+        public ResultType Result_Type { get => _Result_Type; }
         private Int32 _Length;
         public Int32 Length { get => _Length; }
-        private TrajectoryType _TRType;
-        public TrajectoryType TRType { get => _TRType; }
-        public TrajectoryLengthArgs(Trajectory trajectory, TrajectoryType trtype)
+        private Int64 _TimeInSecs;
+        public Int64 TimeInSecs { get => _TimeInSecs; }
+        public ResultMessageArgs(Int32 id, ResultType resultType, Int32 length, Int64 timeInSecs)
         {
-            _Length = trajectory.NumberOfPoints;
-            _TRType = trtype;
-        }
-    }
-
-    public class ErrorToleranceArgs : EventArgs
-    {
-        private Double _ErrorTolerance;
-        public Double ErrorTolerance { get => _ErrorTolerance; }
-        public ErrorToleranceArgs(Double errorTolerance)
-        {
-            _ErrorTolerance = errorTolerance;
+            _ID = id;
+            _Result_Type = resultType;
+            _Length = length;
+            _TimeInSecs = timeInSecs;
         }
     }
 }

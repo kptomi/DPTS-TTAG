@@ -6,15 +6,14 @@ namespace DPTS.Model
     public class Trajectory
     {
         private List<Point> _Points;
-        private String _StartTime, _EndTime;
-        public String StartTime { get => _StartTime; set => _StartTime = value; }
-        public String EndTime { get => _EndTime; set => _EndTime = value; }
+        public String StartTime { get; private set; }
+        public String EndTime { get; private set; }
 
         public Trajectory()
         {
             _Points = new List<Point>();
-            _StartTime = "";
-            _EndTime = "";
+            StartTime = "";
+            EndTime = "";
         }
 
         public Point this[Int32 index] { get => _Points[index]; }
@@ -24,6 +23,16 @@ namespace DPTS.Model
         public void Add(Point item)
         {
             _Points.Add(item);
+        }
+
+        public void setStartTime(String time)
+        {
+            StartTime = time;
+        }
+
+        public void setEndTime(String time)
+        {
+            EndTime = time;
         }
     }
 }

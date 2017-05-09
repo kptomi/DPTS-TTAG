@@ -8,7 +8,7 @@ namespace DPTS.Model
 {
     public enum DataType { PLT };
 
-    public enum AlgorithmType { SP, Approximative};
+    public enum AlgorithmType { SP, SP_Prac, SP_Theo, SP_Both, Intersect };
 
     public class DPTSModel
     {
@@ -19,15 +19,13 @@ namespace DPTS.Model
         // Privát adattagok
 
         private List<Trajectory> _OriginalTrajectories;
-        private List<Trajectory> _SimplifiedTrajectoriesOptimal;
-        private List<Trajectory> _SimplifiedTrajectorieApproximative;
+        private List<Trajectory> _SimplifiedTrajectories;
 
 
         // Események (a viewmodel-nek)
 
         public event EventHandler<StringMessageArgs> ErrorMessage;
-        public event EventHandler<TrajectoryLengthArgs> TrajectoryLengthMessage;
-        public event EventHandler<ErrorToleranceArgs> ErrorToleranceMessage;
+        public event EventHandler<ResultMessageArgs> ResultMessage;
         public event EventHandler<StringMessageArgs> StatusMessage;
 
 
@@ -35,18 +33,23 @@ namespace DPTS.Model
 
         public DPTSModel()
         {
-            InitializeTrajectories();
+            InitializeTrajectoriesAndResults();
         }
 
-        private void InitializeTrajectories()
+        private void InitializeTrajectoriesAndResults()
         {
             _OriginalTrajectories = new List<Trajectory>();
-            _SimplifiedTrajectoriesOptimal = new List<Trajectory>();
-            _SimplifiedTrajectorieApproximative = new List<Trajectory>();
+            _SimplifiedTrajectories = new List<Trajectory>();
         }
 
         public void OpenAndLoadFromFile(DataType data_type, String path_to_data_root, Int32 limit) {
-            InitializeTrajectories();
+            // TOTO : normális hibaüzenetet adni
+            if (!Directory.Exists(path_to_data_root))
+            {
+                ErrorMessage(this, new StringMessageArgs("A megadott könyvtár nem létezik."));
+            }
+
+            InitializeTrajectoriesAndResults();
             switch (data_type)
             {
                 case DataType.PLT:
@@ -60,11 +63,6 @@ namespace DPTS.Model
 
         private void ReadDataFromPLT(String path_to_data_root, Int32 limit)
         {
-            if (!Directory.Exists(path_to_data_root))
-            {
-                ErrorMessage(this, new StringMessageArgs("A megadott könyvtár nem létezik."));
-            }
-
             // TODO : ellenőrizni a struktúra helyességét
 
             String[] directoryEntries = Directory.GetDirectories(path_to_data_root);
@@ -107,10 +105,10 @@ namespace DPTS.Model
                 }
                 endTime = inputArray[5] + " " + inputArray[6];
             }
-            trajectory.StartTime = startTime;
-            trajectory.EndTime = endTime;
+            trajectory.setStartTime(startTime);
+            trajectory.setEndTime(endTime);
             _OriginalTrajectories.Add(trajectory);
-            TrajectoryLengthMessage(this, new TrajectoryLengthArgs(trajectory, TrajectoryType.Original));
+            ResultMessage(this, new ResultMessageArgs(_OriginalTrajectories.Count - 1, ResultType.Original, trajectory.NumberOfPoints, 0));
         }
 
         public void SimplifyTrajectories(AlgorithmType algorithm_type)
@@ -122,34 +120,38 @@ namespace DPTS.Model
                 switch (algorithm_type)
                 {
                     case AlgorithmType.SP:
-                        Double[] tolerances = { 0.785, 0.615, 0.47, 0.32, 0.2, 0 };
-                        StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP algoritmussal... 0/" + tolerances.Length * _OriginalTrajectories.Count));
-                        for (Int32 j = 0; j < tolerances.Length; ++j)
+                        StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP algoritmussal... 0/" + _OriginalTrajectories.Count));
+                        for (Int32 i = 0; i < _OriginalTrajectories.Count; ++i)
                         {
-                            errorTolerance = tolerances[j];
-                            for (Int32 i = 0; i < _OriginalTrajectories.Count; ++i)
-                            {
-                                StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP algoritmussal... " + (j * _OriginalTrajectories.Count + i + 1) + "/" + tolerances.Length * _OriginalTrajectories.Count));
-                                // step 0
-                                // egymás utáni azonos pontok sorozatának helyettesítése egyetlen ponttal
-                                Trajectory removedSeqsFromTrajectory = RemoveSequences(_OriginalTrajectories[i]);
-                                Trajectory t = SimplifyBySPAlg(removedSeqsFromTrajectory, errorTolerance);
-                                _SimplifiedTrajectoriesOptimal.Add(t);
-                                TrajectoryLengthMessage(this, new TrajectoryLengthArgs(t, TrajectoryType.SimplifiedOptimal));
-                            }
-                            ErrorToleranceMessage(this, new ErrorToleranceArgs(errorTolerance));
+                            StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP algoritmussal... " + (i + 1) + "/" + _OriginalTrajectories.Count));
+                            // step 0
+                            // egymás utáni azonos pontok sorozatának helyettesítése egyetlen ponttal
+                            Trajectory removedSeqsFromTrajectory = RemoveSequences(_OriginalTrajectories[i]);
+                            DateTime timeStart = DateTime.Now;
+                            Trajectory t = SimplifyBySP(removedSeqsFromTrajectory, errorTolerance);
+                            Int64 timeDifference = DateTime.Now.Subtract(timeStart).Ticks;
+                            _SimplifiedTrajectories.Add(t);
+                            ResultMessage(this, new ResultMessageArgs(i, ResultType.SP, t.NumberOfPoints, timeDifference));
                         }
                         StatusMessage(this, new StringMessageArgs("Egyszerűsítés az SP algoritmussal KÉSZ."));
                         break;
-                    case AlgorithmType.Approximative:
+                    case AlgorithmType.SP_Prac:
+                        break;
+                    case AlgorithmType.SP_Theo:
+                        break;
+                    case AlgorithmType.SP_Both:
+                        break;
+                    case AlgorithmType.Intersect:
                         for (Int32 i = 0; i < _OriginalTrajectories.Count; ++i)
                         {
                             // step 0
                             // egymás utáni azonos pontok sorozatának helyettesítése egyetlen ponttal
                             Trajectory removedSeqsFromTrajectory = RemoveSequences(_OriginalTrajectories[i]);
+                            DateTime timeStart = DateTime.Now;
                             Trajectory t = SimplifyByApproximativeAlg(removedSeqsFromTrajectory, errorTolerance);
-                            _SimplifiedTrajectoriesOptimal.Add(t);
-                            TrajectoryLengthMessage(this, new TrajectoryLengthArgs(t, TrajectoryType.SimplifiedApproximative));
+                            Int64 timeDifference = DateTime.Now.Subtract(timeStart).Ticks;
+                            _SimplifiedTrajectories.Add(t);
+                            ResultMessage(this, new ResultMessageArgs(i, ResultType.Intersect, t.NumberOfPoints, timeDifference));
                         }
                         break;
                     default:
@@ -179,7 +181,7 @@ namespace DPTS.Model
             return removedSequences;
         }
 
-        private Trajectory SimplifyBySPAlg(Trajectory trajectory, Double error_tolerance)
+        private Trajectory SimplifyBySP(Trajectory trajectory, Double error_tolerance)
         {
             // step 1 - graph construction
             Boolean[,] graph = ConstructGraph(trajectory, error_tolerance);

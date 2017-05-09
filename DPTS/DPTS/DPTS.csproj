@@ -68,6 +68,7 @@
     <Compile Include="Model\Trajectory.cs" />
     <Compile Include="ViewModel\DelegateCommand.cs" />
     <Compile Include="ViewModel\DPTSViewModel.cs" />
+    <Compile Include="ViewModel\Result.cs" />
     <Compile Include="ViewModel\ViewModelBase.cs" />
     <Compile Include="View\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
