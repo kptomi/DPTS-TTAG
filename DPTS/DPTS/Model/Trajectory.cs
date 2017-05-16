@@ -25,12 +25,12 @@ namespace DPTS.Model
             _Points.Add(item);
         }
 
-        public void setStartTime(String time)
+        public void SetStartTime(String time)
         {
             StartTime = time;
         }
 
-        public void setEndTime(String time)
+        public void SetEndTime(String time)
         {
             EndTime = time;
         }

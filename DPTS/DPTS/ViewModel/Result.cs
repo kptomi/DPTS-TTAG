@@ -19,42 +19,42 @@ namespace DPTS.ViewModel
             No = no;
         }
 
-        public void setLengthOriginal(Int32 length)
+        public void SetLengthOriginal(Int32 length)
         {
             LengthOriginal = length;
         }
 
-        public void setLengthOptimal(Int32 length)
+        public void SetLengthOptimal(Int32 length)
         {
             LengthOptimal = length;
         }
 
-        public void setLengthApproximative(Int32 length)
+        public void SetLengthApproximative(Int32 length)
         {
             LengthApproximative = length;
         }
 
-        public void setTime_SP(Double time)
+        public void SetTime_SP(Double time)
         {
             Time_SP = time;
         }
 
-        public void setTime_SP_Prac(Double time)
+        public void SetTime_SP_Prac(Double time)
         {
             Time_SP_Prac = time;
         }
 
-        public void setTime_SP_Theo(Double time)
+        public void SetTime_SP_Theo(Double time)
         {
             Time_SP_Theo = time;
         }
 
-        public void setTime_SP_Both(Double time)
+        public void SetTime_SP_Both(Double time)
         {
             Time_SP_Both = time;
         }
 
-        public void setTime_Intersect(Double time)
+        public void SetTime_Intersect(Double time)
         {
             Time_Intersect = time;
         }

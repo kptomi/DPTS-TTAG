@@ -23,6 +23,7 @@ namespace DPTS.Model
         private List<Trajectory> _SimplifiedOptimalTrajectories;
         private List<Trajectory> _SimplifiedApproximateTrajectories;
         private ConcurrentDictionary<Int32, Trajectory> _Dict;
+        private AlgorithmType _AlgorithmType;
         private String _AlgorithmName = "";
 
 
@@ -158,8 +159,8 @@ namespace DPTS.Model
                 }
                 endTime = inputArray[5] + " " + inputArray[6];
             }
-            trajectory.setStartTime(startTime);
-            trajectory.setEndTime(endTime);
+            trajectory.SetStartTime(startTime);
+            trajectory.SetEndTime(endTime);
             _OriginalTrajectories.Add(trajectory);
             SendResultMessageFromThread(_OriginalTrajectories.Count - 1, ResultType.Original, trajectory.NumberOfPoints, 0);
         }
@@ -183,18 +184,16 @@ namespace DPTS.Model
                 }
                 endTime = inputArray[1];
             }
-            trajectory.setStartTime(startTime);
-            trajectory.setEndTime(endTime);
+            trajectory.SetStartTime(startTime);
+            trajectory.SetEndTime(endTime);
             _OriginalTrajectories.Add(trajectory);
             SendResultMessageFromThread(_OriginalTrajectories.Count - 1, ResultType.Original, trajectory.NumberOfPoints, 0);
         }
 
 
-        public void SimplifyTrajectories(AlgorithmType algorithm_type, Double errorTolerance)
+        public void SetAlgorithm(AlgorithmType algorithm_type)
         {
-            SimplifyStateMessage(this, new SimplifyStateMessageArgs(true));
-
-            _Dict = new ConcurrentDictionary<Int32, Trajectory>();
+            _AlgorithmType = algorithm_type;
 
             switch (algorithm_type)
             {
@@ -216,8 +215,22 @@ namespace DPTS.Model
                 default:
                     break;
             }
+        }
+
+
+        public void SimplifyTrajectories(Double errorTolerance)
+        {
+            SimplifyStateMessage(this, new SimplifyStateMessageArgs(true));
+
+            _Dict = new ConcurrentDictionary<Int32, Trajectory>();
 
             StatusMessage(this, new StringMessageArgs(GetStatusStringOfSimplify()));
+
+            ConcurrentQueue<Int32> queue = new ConcurrentQueue<Int32>();
+            for (Int32 i = 0; i < _OriginalTrajectories.Count; ++i)
+            {
+                queue.Enqueue(i);
+            }
 
             Int32 procNo = (Environment.ProcessorCount <= 1) ? 1 : Environment.ProcessorCount - 1;
             for (Int32 i = 0; i < procNo; ++i)
@@ -225,7 +238,7 @@ namespace DPTS.Model
                 Int32 currentI = i;
                 Task task = Task.Run(() =>
                 {
-                    for (Int32 j = currentI; j < _OriginalTrajectories.Count; j += procNo)
+                    while (queue.TryDequeue(out int j))
                     {
                         // step 0
                         // egymás utáni azonos pontok sorozatának helyettesítése egyetlen ponttal
@@ -233,7 +246,7 @@ namespace DPTS.Model
                         DateTime timeStart = DateTime.Now;
                         Trajectory t;
                         ResultType resultType;
-                        switch (algorithm_type)
+                        switch (_AlgorithmType)
                         {
                             case AlgorithmType.SP:
                                 t = SimplifyBySP(removedSeqsFromTrajectory, errorTolerance);
@@ -265,7 +278,7 @@ namespace DPTS.Model
                         SendStatusMessageFromThread(GetStatusStringOfSimplify());
                         if (_Dict.Count == _OriginalTrajectories.Count)
                         {
-                            SendSimplifyEndedMessageFromThread(algorithm_type);
+                            SendSimplifyEndedMessageFromThread(_AlgorithmType);
                             SendSimplifyStateMessageFromThread(false);
                         }
                     }
@@ -291,10 +304,6 @@ namespace DPTS.Model
             {
                 Point reference = originalTrajectory[i];
                 removedSequences.Add(reference);
-                if (removedSequences.NumberOfPoints == 84)
-                {
-                    ;
-                }
                 Int32 j = i + 1;
                 while (j < originalTrajectory.NumberOfPoints && reference.Equals(originalTrajectory[j]))
                 {
@@ -347,7 +356,7 @@ namespace DPTS.Model
         }
 
 
-        // epszilon az egyszerűsített trajektória egy szakaszára összevetve az eredeti trajektória megfelelő darabjaival - maximumkiválasztás
+        // epszilon számítása az egyszerűsített trajektória egy szakaszára összevetve az eredeti trajektória megfelelő darabjaival - maximumkiválasztás
         private Double GetSimplificationErrorOnSegment(Trajectory trajectory, Int32 i, Int32 j)
         {
             Double directionSimplified = Point.GetDirection(trajectory[i], trajectory[j]);

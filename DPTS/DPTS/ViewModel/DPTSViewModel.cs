@@ -15,6 +15,7 @@ namespace DPTS.ViewModel
 
         private const string _pathExample = "C:\\Users\\User\\Documents\\Terinformatika\\4-Geolife\\Geolife Trajectories 1.3\\Data";
 
+
         // Privát adattagok
 
         private DPTSModel _Model;
@@ -34,7 +35,44 @@ namespace DPTS.ViewModel
         private String _ErrorToleranceString = "1";
         public String ErrorToleranceString { get => _ErrorToleranceString; set => _ErrorToleranceString = value; }
         private Int32 _SelectedAlgorithmIndex;
-        public Int32 SelectedAlgorithmIndex { get => _SelectedAlgorithmIndex; set => _SelectedAlgorithmIndex = value; }
+        public Int32 SelectedAlgorithmIndex {
+            get => _SelectedAlgorithmIndex;
+            set
+            {
+                _SelectedAlgorithmIndex = value;
+
+                if (SelectedAlgorithmIndex != -1) {
+                    AlgorithmType algorithm;
+                    switch (SelectedAlgorithmIndex)
+                    {
+                        case 0:
+                            // SP
+                            algorithm = AlgorithmType.SP;
+                            break;
+                        case 1:
+                            // SP-Prac
+                            algorithm = AlgorithmType.SP_Prac;
+                            break;
+                        case 2:
+                            // SP-Theo
+                            algorithm = AlgorithmType.SP_Theo;
+                            break;
+                        case 3:
+                            // SP-Both
+                            algorithm = AlgorithmType.SP_Both;
+                            break;
+                        case 4:
+                            // Intersect
+                            algorithm = AlgorithmType.Intersect;
+                            break;
+                        default:
+                            throw new NotImplementedException();
+                            //break;
+                    }
+                    _Model.SetAlgorithm(algorithm);
+                }
+            }
+        }
         public Boolean IsInputEnabled { get => !_SimplifyInProgress;  } 
         public Boolean IsOpenEnabled { get => !_SimplifyInProgress && SelectedDatasetIndex != -1 && SelectedSizeIndex != -1; }
         public Boolean IsSimplifyEnabled { get => _DataAlreadyRead && !_SimplifyInProgress; }
@@ -69,18 +107,19 @@ namespace DPTS.ViewModel
         {
             _Model = new DPTSModel();
 
-            // a modell eseményeinek kezelése
 
+            // a modell eseményeinek kezelése
             _Model.ErrorMessage += new EventHandler<StringMessageArgs>(OnErrorMessage);
             _Model.ResultMessage += new EventHandler<ResultMessageArgs>(OnResultMessage);
             _Model.SimplifyStateMessage += new EventHandler<SimplifyStateMessageArgs>(OnSimplifyStateMessage);
             _Model.StatusMessage += new EventHandler<StringMessageArgs>(OnStatusMessage);
 
+
             // inicializálások, kezdőállapot előállítása
 
             _DataAlreadyRead = false;
             _SimplifyInProgress = false;
-            //Path = _pathExample;
+            Path = _pathExample;
             Results = new ObservableCollection<Result>();
 
             OpenFileAsDataSourceCommand = new DelegateCommand(x => OpenFileAsDataSource());
@@ -192,6 +231,11 @@ namespace DPTS.ViewModel
                 System.Windows.MessageBox.Show("You must enter a valid floating point number as an error tolerance!", "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
                 return;
             }
+            if (_ErrorTolerance < 0 || _ErrorTolerance > Math.PI)
+            {
+                System.Windows.MessageBox.Show("Error tolerance must be greater or equal than 0 AND less or equal than mathematical PI (3.14)!", "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                return;
+            }
             if (SelectedAlgorithmIndex == -1)
             {
                 System.Windows.MessageBox.Show("You must select an algorithm!", "DPTS application", MessageBoxButton.OK, MessageBoxImage.Exclamation);
@@ -200,35 +244,7 @@ namespace DPTS.ViewModel
 
             _SimplifyInProgress = true;
 
-            AlgorithmType algorithm;
-            switch (SelectedAlgorithmIndex)
-            {
-                case 0:
-                    // SP
-                    algorithm = AlgorithmType.SP;
-                    break;
-                case 1:
-                    // SP-Prac
-                    algorithm = AlgorithmType.SP_Prac;
-                    break;
-                case 2:
-                    // SP-Theo
-                    algorithm = AlgorithmType.SP_Theo;
-                    break;
-                case 3:
-                    // SP-Both
-                    algorithm = AlgorithmType.SP_Both;
-                    break;
-                case 4:
-                    // Intersect
-                    algorithm = AlgorithmType.Intersect;
-                    break;
-                default:
-                    throw new NotImplementedException();
-                    //break;
-            }
-
-            _Model.SimplifyTrajectories(algorithm, _ErrorTolerance);
+            _Model.SimplifyTrajectories(_ErrorTolerance);
         }
 
 
@@ -255,27 +271,27 @@ namespace DPTS.ViewModel
             switch (e.Result_Type)
             {
                 case ResultType.Original:
-                    r.setLengthOriginal(e.Length);
+                    r.SetLengthOriginal(e.Length);
                     break;
                 case ResultType.SP:
-                    r.setLengthOptimal(e.Length);
-                    r.setTime_SP(e.TimeInSecs);
+                    r.SetLengthOptimal(e.Length);
+                    r.SetTime_SP(e.TimeInSecs);
                     break;
                 case ResultType.SP_Prac:
-                    r.setLengthOptimal(e.Length);
-                    r.setTime_SP_Prac(e.TimeInSecs);
+                    r.SetLengthOptimal(e.Length);
+                    r.SetTime_SP_Prac(e.TimeInSecs);
                     break;
                 case ResultType.SP_Theo:
-                    r.setLengthOptimal(e.Length);
-                    r.setTime_SP_Theo(e.TimeInSecs);
+                    r.SetLengthOptimal(e.Length);
+                    r.SetTime_SP_Theo(e.TimeInSecs);
                     break;
                 case ResultType.SP_Both:
-                    r.setLengthOptimal(e.Length);
-                    r.setTime_SP_Both(e.TimeInSecs);
+                    r.SetLengthOptimal(e.Length);
+                    r.SetTime_SP_Both(e.TimeInSecs);
                     break;
                 case ResultType.Intersect:
-                    r.setLengthApproximative(e.Length);
-                    r.setTime_Intersect(e.TimeInSecs);
+                    r.SetLengthApproximative(e.Length);
+                    r.SetTime_Intersect(e.TimeInSecs);
                     break;
                 default:
                     break;

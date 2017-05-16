@@ -48,16 +48,21 @@
         </StackPanel>
         <Label Content="Results:" Grid.Column="0" Grid.Row="4" Margin="5" VerticalAlignment="Center" />
         <DataGrid AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeRows="False" Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="5" IsReadOnly="True" ItemsSource="{Binding Results, Mode=OneWay, NotifyOnSourceUpdated=True, UpdateSourceTrigger=PropertyChanged}" Name="ResultsDataGrid">
+            <DataGrid.ColumnHeaderStyle>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="HorizontalContentAlignment" Value="Center" />
+                </Style>
+            </DataGrid.ColumnHeaderStyle>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="No"  Width="60" Binding="{Binding No}" />
+                <DataGridTextColumn Header="No"  Width="55" Binding="{Binding No}" />
                 <DataGridTextColumn Header="OrigLength" Width="90" Binding="{Binding LengthOriginal}" />
-                <DataGridTextColumn Header="SimpLengthOpt" Width="90" Binding="{Binding LengthOptimal}" />
+                <DataGridTextColumn Header="SimpLengthOpt" Width="95" Binding="{Binding LengthOptimal}" />
                 <DataGridTextColumn Header="SimpLengthApprox" Width="115" Binding="{Binding LengthApproximative}" />
-                <DataGridTextColumn Header="SP" Width="70" Binding="{Binding Time_SP}" />
-                <DataGridTextColumn Header="SP-Prac" Width="70" Binding="{Binding Time_SP_Prac}" />
-                <DataGridTextColumn Header="SP-Theo" Width="70" Binding="{Binding Time_SP_Theo}" />
-                <DataGridTextColumn Header="SP-Both" Width="70" Binding="{Binding Time_SP_Both}" />
-                <DataGridTextColumn Header="Intersect" Width="70" Binding="{Binding Time_Intersect}" />
+                <DataGridTextColumn Header="SP" Width="75" Binding="{Binding Time_SP}" />
+                <DataGridTextColumn Header="SP-Prac" Width="75" Binding="{Binding Time_SP_Prac}" />
+                <DataGridTextColumn Header="SP-Theo" Width="75" Binding="{Binding Time_SP_Theo}" />
+                <DataGridTextColumn Header="SP-Both" Width="75" Binding="{Binding Time_SP_Both}" />
+                <DataGridTextColumn Header="Intersect" Width="75" Binding="{Binding Time_Intersect}" />
             </DataGrid.Columns>
         </DataGrid>
         <StatusBar Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="6">
